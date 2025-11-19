@@ -141,15 +141,19 @@ def dashboard():
     import json
     
     config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    mart1_base_url = None
+    
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:
             config = json.load(f)
         
         mart1_enabled = config.get('mart1_api', {}).get('enabled', True)
         prefer_mart1 = config.get('data_sources', {}).get('prefer_mart1', True)
+        mart1_base_url = config.get('mart1_api', {}).get('base_url')
         
         if mart1_enabled and prefer_mart1:
-            mart1_integration = get_mart1_integration(config.get('mart1_api', {}).get('base_url', 'http://127.0.0.1:8000'))
+            # Pass None to use environment variable if config has null
+            mart1_integration = get_mart1_integration(mart1_base_url)
             if mart1_integration.is_available():
                 logging.info("Dashboard: mart1 is available, will load data automatically")
                 session['data_source'] = 'mart1'
@@ -169,15 +173,19 @@ def analysis():
     import json
     
     config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    mart1_base_url = None
+    
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:
             config = json.load(f)
         
         mart1_enabled = config.get('mart1_api', {}).get('enabled', True)
         prefer_mart1 = config.get('data_sources', {}).get('prefer_mart1', True)
+        mart1_base_url = config.get('mart1_api', {}).get('base_url')
         
         if mart1_enabled and prefer_mart1:
-            mart1_integration = get_mart1_integration(config.get('mart1_api', {}).get('base_url', 'http://127.0.0.1:8000'))
+            # Pass None to use environment variable if config has null
+            mart1_integration = get_mart1_integration(mart1_base_url)
             if mart1_integration.is_available():
                 logging.info("Analysis: mart1 is available, will load data automatically")
                 session['data_source'] = 'mart1'
@@ -421,5 +429,5 @@ def server_error(e):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(host='0.0.0.0', port=5500, debug=True, use_reloader=False)
 
