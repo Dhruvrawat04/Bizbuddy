@@ -24,10 +24,9 @@ if os.path.exists(config_path):
     with open(config_path, 'r') as f:
         config = json.load(f)
 
-# Initialize mart1 integration
-mart1_integration = get_mart1_integration(
-    config.get('mart1_api', {}).get('base_url', 'http://127.0.0.1:8000')
-)
+# Initialize mart1 integration (use None to read from env var if config has null)
+mart1_base_url = config.get('mart1_api', {}).get('base_url')
+mart1_integration = get_mart1_integration(mart1_base_url)
 
 @api_bp.route('/load-data', methods=['GET'])
 def load_data():
