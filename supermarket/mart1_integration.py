@@ -6,13 +6,16 @@ import requests
 import pandas as pd
 import logging
 from typing import Optional, Dict, Any
+import os
 
 logger = logging.getLogger(__name__)
 
 class Mart1Integration:
     """Service to connect supermarket analytics with mart1 billing system"""
     
-    def __init__(self, base_url: str = "http://127.0.0.1:8000"):
+    def __init__(self, base_url: str = None):
+        if base_url is None:
+            base_url = os.environ.get('MART1_API_URL', 'http://127.0.0.1:8000')
         """
         Initialize the integration service
         
@@ -178,9 +181,10 @@ class Mart1Integration:
 # Global instance
 _mart1_integration = None
 
-def get_mart1_integration(base_url: str = "http://127.0.0.1:8000") -> Mart1Integration:
-    """Get or create the global mart1 integration instance"""
+def get_mart1_integration(base_url: str = None) -> Mart1Integration:
     global _mart1_integration
     if _mart1_integration is None:
+        if base_url is None:
+            base_url = os.environ.get('MART1_API_URL', 'http://127.0.0.1:8000')
         _mart1_integration = Mart1Integration(base_url)
     return _mart1_integration
