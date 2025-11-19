@@ -1,7 +1,7 @@
 {
   "mart1_api": {
     "enabled": true,
-    "base_url": "http://127.0.0.1:8000",
+    "base_url": null,
     "timeout": 10,
     "retry_attempts": 3
   },
@@ -14,8 +14,8 @@
     "max_records": 10000
   },
   "flask": {
-    "host": "127.0.0.1",
+    "host": "0.0.0.0",
     "port": 5000,
-    "debug": true
+    "debug": false
   }
 }
