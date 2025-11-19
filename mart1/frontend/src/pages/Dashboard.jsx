@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { dashboard, reports } from '../services/api';
-import { Package, DollarSign, TrendingUp, AlertTriangle, Calendar, BarChart3, PieChart as PieChartIcon, Trophy } from 'lucide-react';
+import { Package, DollarSign, TrendingUp, AlertTriangle, Calendar, BarChart3, PieChart as PieChartIcon, Trophy, RefreshCw } from 'lucide-react';
+import { StatsCardSkeleton, ChartSkeleton } from '../components/LoadingSkeleton';
+import CountUp from '../components/CountUp';
 import '../styles/Dashboard.css';
 
 function Dashboard() {
@@ -41,96 +44,156 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
+      <div className="dashboard">
+        <div className="dashboard-header">
+          <div>
+            <h1>Dashboard Overview</h1>
+            <p className="dashboard-subtitle">Loading your business summary...</p>
+          </div>
+        </div>
+        <StatsCardSkeleton />
+        <div className="charts-grid">
+          <ChartSkeleton />
+          <ChartSkeleton />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard">
+    <motion.div 
+      className="dashboard"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       <div className="dashboard-header">
         <div>
           <h1>Dashboard Overview</h1>
           <p className="dashboard-subtitle">Welcome back! Here's your business summary</p>
         </div>
-        <div className="date-range-selector">
-          <Calendar size={18} />
-          <label>Sales Period:</label>
-          <select value={dateRange} onChange={(e) => setDateRange(Number(e.target.value))}>
-            <option value={7}>Last 7 Days</option>
-            <option value={14}>Last 14 Days</option>
-            <option value={30}>Last 30 Days</option>
-            <option value={90}>Last 90 Days</option>
-          </select>
+        <div className="dashboard-actions">
+          <motion.button 
+            className="refresh-btn"
+            onClick={loadDashboardData}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <RefreshCw size={18} />
+            Refresh
+          </motion.button>
+          <div className="date-range-selector">
+            <Calendar size={18} />
+            <label>Sales Period:</label>
+            <select value={dateRange} onChange={(e) => setDateRange(Number(e.target.value))}>
+              <option value={7}>Last 7 Days</option>
+              <option value={14}>Last 14 Days</option>
+              <option value={30}>Last 30 Days</option>
+              <option value={90}>Last 90 Days</option>
+            </select>
+          </div>
         </div>
       </div>
       
       <div className="stats-grid">
-        <div className="stat-card gradient-blue">
+        <motion.div 
+          className="stat-card gradient-blue"
+          whileHover={{ scale: 1.02, y: -4 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <div className="stat-content">
             <div className="stat-icon-wrapper">
               <Package className="stat-icon" size={28} />
             </div>
             <div className="stat-info">
               <h3>Total Products</h3>
-              <p className="stat-value">{stats?.total_products || 0}</p>
+              <p className="stat-value">
+                <CountUp end={stats?.total_products || 0} />
+              </p>
             </div>
           </div>
-        </div>
+        </motion.div>
         
-        <div className="stat-card gradient-green">
+        <motion.div 
+          className="stat-card gradient-green"
+          whileHover={{ scale: 1.02, y: -4 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <div className="stat-content">
             <div className="stat-icon-wrapper">
               <TrendingUp className="stat-icon" size={28} />
             </div>
             <div className="stat-info">
               <h3>Total Sales</h3>
-              <p className="stat-value">{stats?.total_sales || 0}</p>
+              <p className="stat-value">
+                <CountUp end={stats?.total_sales || 0} />
+              </p>
             </div>
           </div>
-        </div>
+        </motion.div>
         
-        <div className="stat-card gradient-purple">
+        <motion.div 
+          className="stat-card gradient-purple"
+          whileHover={{ scale: 1.02, y: -4 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <div className="stat-content">
             <div className="stat-icon-wrapper">
               <DollarSign className="stat-icon" size={28} />
             </div>
             <div className="stat-info">
               <h3>Total Revenue</h3>
-              <p className="stat-value">₹{stats?.total_revenue?.toFixed(2) || '0.00'}</p>
+              <p className="stat-value">
+                ₹<CountUp end={parseFloat(stats?.total_revenue) || 0} duration={2000} />
+              </p>
             </div>
           </div>
-        </div>
+        </motion.div>
         
-        <div className="stat-card gradient-orange">
+        <motion.div 
+          className="stat-card gradient-orange"
+          whileHover={{ scale: 1.02, y: -4 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <div className="stat-content">
             <div className="stat-icon-wrapper">
               <AlertTriangle className="stat-icon" size={28} />
             </div>
             <div className="stat-info">
               <h3>Low Stock Items</h3>
-              <p className="stat-value">{stats?.low_stock_count || 0}</p>
+              <p className="stat-value">
+                <CountUp end={stats?.low_stock_count || 0} />
+              </p>
             </div>
           </div>
-        </div>
+        </motion.div>
         
-        <div className="stat-card gradient-pink">
+        <motion.div 
+          className="stat-card gradient-pink"
+          whileHover={{ scale: 1.02, y: -4 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
           <div className="stat-content">
             <div className="stat-icon-wrapper">
               <Calendar className="stat-icon" size={28} />
             </div>
             <div className="stat-info">
               <h3>Today's Sales</h3>
-              <p className="stat-value">₹{stats?.today_sales?.toFixed(2) || '0.00'}</p>
+              <p className="stat-value">
+                ₹<CountUp end={parseFloat(stats?.today_sales) || 0} duration={2000} />
+              </p>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <div className="charts-grid">
-        <div className="chart-card">
+        <motion.div 
+          className="chart-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
           <div className="chart-header">
             <BarChart3 size={22} />
             <h2>Sales Trend (Last {dateRange} Days)</h2>
@@ -149,13 +212,36 @@ function Dashboard() {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
-              <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} name="Revenue (₹)" dot={{ fill: '#3b82f6', r: 5 }} activeDot={{ r: 7 }} />
-              <Line type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={3} name="Sales Count" dot={{ fill: '#6366f1', r: 5 }} activeDot={{ r: 7 }} />
+              <Line 
+                type="monotone" 
+                dataKey="total" 
+                stroke="#3b82f6" 
+                strokeWidth={3} 
+                name="Revenue (₹)" 
+                dot={{ fill: '#3b82f6', r: 5 }} 
+                activeDot={{ r: 7 }}
+                animationDuration={1500}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="count" 
+                stroke="#6366f1" 
+                strokeWidth={3} 
+                name="Sales Count" 
+                dot={{ fill: '#6366f1', r: 5 }} 
+                activeDot={{ r: 7 }}
+                animationDuration={1500}
+              />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
 
-        <div className="chart-card">
+        <motion.div 
+          className="chart-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
           <div className="chart-header">
             <PieChartIcon size={22} />
             <h2>Category Sales Distribution</h2>
@@ -171,6 +257,7 @@ function Dashboard() {
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
+                animationDuration={1500}
               >
                 {categorySales.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -186,9 +273,14 @@ function Dashboard() {
               />
             </PieChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
 
-        <div className="chart-card wide">
+        <motion.div 
+          className="chart-card wide"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+        >
           <div className="chart-header">
             <Trophy size={22} />
             <h2>Top 5 Products by Revenue</h2>
@@ -207,7 +299,13 @@ function Dashboard() {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
-              <Bar dataKey="revenue" fill="url(#colorRevenue)" name="Revenue (₹)" radius={[8, 8, 0, 0]} />
+              <Bar 
+                dataKey="revenue" 
+                fill="url(#colorRevenue)" 
+                name="Revenue (₹)" 
+                radius={[8, 8, 0, 0]}
+                animationDuration={1500}
+              />
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
@@ -216,9 +314,9 @@ function Dashboard() {
               </defs>
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

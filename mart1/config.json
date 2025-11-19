@@ -1,0 +1,19 @@
+{
+  "api": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "cors_origins": ["http://localhost:3000", "http://localhost:5000", "http://127.0.0.1:5000"],
+    "title": "SuperMarket Management API",
+    "version": "1.0"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "mart_db",
+    "user": "postgres"
+  },
+  "features": {
+    "enable_category_restriction": true,
+    "enable_data_export": true
+  }
+}

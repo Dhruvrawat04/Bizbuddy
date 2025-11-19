@@ -1,0 +1,12 @@
+runtime: python-3.11
+
+env_variables:
+  PGHOST: "your-supabase-host"
+  PGDATABASE: "postgres"
+  PGUSER: "your-supabase-user"
+  PGPASSWORD: "your-supabase-password"
+  PGPORT: "5432"
+
+handlers:
+- url: /.*
+  script: auto

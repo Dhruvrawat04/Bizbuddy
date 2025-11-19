@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { products, categories, suppliers } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Package, Plus, X, RefreshCw } from 'lucide-react';
+import { Package, Plus, X, RefreshCw, Search, Edit, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
+import { TableSkeleton } from '../components/LoadingSkeleton';
 import '../styles/Products.css';
 
 function Products() {
@@ -24,6 +28,8 @@ function Products() {
   });
   const [restockQuantity, setRestockQuantity] = useState('');
   const [filteredSuppliers, setFilteredSuppliers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, productId: null, productName: '' });
 
   useEffect(() => {
     loadData();
@@ -70,6 +76,7 @@ function Products() {
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
+    const loadingToast = toast.loading('Adding product...');
     try {
       await products.add({
         ...newProduct,
@@ -79,7 +86,7 @@ function Products() {
         supplier_id: parseInt(newProduct.supplier_id),
         low_stock_threshold: parseInt(newProduct.low_stock_threshold),
       });
-      alert('Product added successfully!');
+      toast.success('Product added successfully!', { id: loadingToast });
       setShowAddForm(false);
       setNewProduct({
         name: '',
@@ -92,46 +99,103 @@ function Products() {
       });
       loadData();
     } catch (error) {
-      alert('Failed to add product: ' + (error.response?.data?.detail || error.message));
+      toast.error('Failed to add product: ' + (error.response?.data?.detail || error.message), { id: loadingToast });
     }
   };
 
   const handleRestock = async (e) => {
     e.preventDefault();
+    const loadingToast = toast.loading('Updating stock...');
     try {
       await products.updateStock(selectedProduct.product_id, parseInt(restockQuantity));
-      alert('Stock updated successfully!');
+      toast.success(`Stock updated! Added ${restockQuantity} units to ${selectedProduct.name}`, { id: loadingToast });
       setShowRestockForm(false);
       setSelectedProduct(null);
       setRestockQuantity('');
       loadData();
     } catch (error) {
-      alert('Failed to update stock: ' + (error.response?.data?.detail || error.message));
+      toast.error('Failed to update stock: ' + (error.response?.data?.detail || error.message), { id: loadingToast });
     }
   };
 
+  const handleDeleteClick = (product) => {
+    setDeleteConfirm({
+      isOpen: true,
+      productId: product.product_id,
+      productName: product.name
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const loadingToast = toast.loading('Deleting product...');
+    try {
+      await products.delete(deleteConfirm.productId);
+      toast.success(`Product "${deleteConfirm.productName}" deleted successfully!`, { id: loadingToast });
+      setDeleteConfirm({ isOpen: false, productId: null, productName: '' });
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete product: ' + (error.response?.data?.detail || error.message), { id: loadingToast });
+    }
+  };
+
+  const filteredProducts = productList.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading products...</p>
+      <div className="products-page">
+        <div className="page-header">
+          <h1>Products</h1>
+        </div>
+        <TableSkeleton rows={8} columns={7} />
       </div>
     );
   }
 
   return (
-    <div className="products-page">
+    <motion.div 
+      className="products-page"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, productId: null, productName: '' })}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Product?"
+        message={`Are you sure you want to delete "${deleteConfirm.productName}"? This action cannot be undone.`}
+        type="danger"
+      />
       <div className="page-header">
         <div className="page-title">
           <Package size={32} />
           <h1>Products</h1>
         </div>
-        {user?.role === 'ADMIN' && (
-          <button className="btn-primary" onClick={() => setShowAddForm(true)}>
-            <Plus size={20} />
-            Add Product
-          </button>
-        )}
+        <div className="page-actions">
+          <div className="search-bar">
+            <Search size={20} />
+            <input
+              type="text"
+              placeholder="Search products by name or barcode..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          {user?.role === 'ADMIN' && (
+            <motion.button 
+              className="btn-primary" 
+              onClick={() => setShowAddForm(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Plus size={20} />
+              Add Product
+            </motion.button>
+          )}
+        </div>
       </div>
 
       <div className="products-table-container">
@@ -150,7 +214,7 @@ function Products() {
             </tr>
           </thead>
           <tbody>
-            {productList.map((product) => (
+            {filteredProducts.map((product) => (
               <tr key={product.product_id} className={product.stock_quantity <= product.low_stock_threshold ? 'low-stock' : ''}>
                 <td>{product.product_id}</td>
                 <td><strong>{product.name}</strong></td>
@@ -349,7 +413,7 @@ function Products() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 

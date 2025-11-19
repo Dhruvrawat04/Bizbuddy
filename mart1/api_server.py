@@ -6,12 +6,24 @@ from sqlalchemy import text
 from db_config import get_engine
 import bcrypt
 import datetime
+import os
 
 app = FastAPI(title="SuperMarket Management API")
 
+# Configure CORS for production
+allowed_origins = [
+    "http://localhost:5000",
+    "http://localhost:3000",
+    os.getenv("FRONTEND_URL", ""),  # Set this in production
+]
+
+# If FRONTEND_URL not set, allow all (for development)
+if not os.getenv("FRONTEND_URL"):
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
