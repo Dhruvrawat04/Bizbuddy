@@ -1,0 +1,147 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Layout from './components/Layout';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Products from './pages/Products';
+import Sales from './pages/Sales';
+import Customers from './pages/Customers';
+import Employees from './pages/Employees';
+import Suppliers from './pages/Suppliers';
+import Categories from './pages/Categories';
+import PurchaseOrders from './pages/PurchaseOrders';
+import Notifications from './pages/Notifications';
+import './App.css';
+
+function PrivateRoute({ children }) {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="loading">Loading...</div>;
+  }
+  
+  return user ? children : <Navigate to="/login" />;
+}
+
+function AppRoutes() {
+  const { user } = useAuth();
+  
+  return (
+    <Routes>
+      <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <Layout><Dashboard /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <PrivateRoute>
+            <Layout><Products /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/sales"
+        element={
+          <PrivateRoute>
+            <Layout><Sales /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/customers"
+        element={
+          <PrivateRoute>
+            <Layout><Customers /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/employees"
+        element={
+          <PrivateRoute>
+            <Layout><Employees /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/suppliers"
+        element={
+          <PrivateRoute>
+            <Layout><Suppliers /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/categories"
+        element={
+          <PrivateRoute>
+            <Layout><Categories /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/purchase-orders"
+        element={
+          <PrivateRoute>
+            <Layout><PurchaseOrders /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <PrivateRoute>
+            <Layout><Notifications /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to="/dashboard" />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+              padding: '16px',
+              borderRadius: '8px',
+              fontSize: '14px',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
