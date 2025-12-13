@@ -15,7 +15,8 @@ import {
   User,
   Store,
   BarChart3,
-  ExternalLink
+  ExternalLink,
+  Shield
 } from 'lucide-react';
 import '../styles/Layout.css';
 
@@ -131,6 +132,17 @@ function Layout({ children }) {
             <Bell className="nav-icon" size={20} />
             <span className="nav-text">Notifications</span>
           </Link>
+
+          {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+            <Link 
+              to="/audit-logs" 
+              className={`nav-item ${isActive('/audit-logs') ? 'active' : ''}`}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Shield className="nav-icon" size={20} />
+              <span className="nav-text">Audit Logs</span>
+            </Link>
+          )}
 
           <div className="nav-divider"></div>
 

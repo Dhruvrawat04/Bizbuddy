@@ -12,6 +12,7 @@ import Suppliers from './pages/Suppliers';
 import Categories from './pages/Categories';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Notifications from './pages/Notifications';
+import AuditLogs from './pages/AuditLogs';
 import './App.css';
 
 function PrivateRoute({ children }) {
@@ -99,6 +100,14 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <Layout><Notifications /></Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/audit-logs"
+        element={
+          <PrivateRoute>
+            <Layout><AuditLogs /></Layout>
           </PrivateRoute>
         }
       />

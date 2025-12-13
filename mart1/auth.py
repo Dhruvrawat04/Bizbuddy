@@ -3,9 +3,9 @@ from sqlalchemy import text
 from db import get_engine
 import getpass
 
-# Disable bcrypt for now to use plain text passwords
-USE_BCRYPT = False
-print("🔐 Using plain text password authentication for development\n")
+# Enable bcrypt for secure password authentication
+USE_BCRYPT = True
+print("🔐 Using bcrypt password authentication (secure mode)\n")
 
 engine = get_engine()
 

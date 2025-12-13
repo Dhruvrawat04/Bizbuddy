@@ -101,6 +101,18 @@ function PurchaseOrders() {
   const updateItem = (index, field, value) => {
     const newItems = [...formData.items];
     newItems[index][field] = value;
+    
+    // Auto-fetch unit price when product is selected
+    if (field === 'product_id' && value) {
+      const selectedProduct = productList.find(p => p.product_id === parseInt(value));
+      if (selectedProduct && selectedProduct.cost_price) {
+        newItems[index]['unit_price'] = selectedProduct.cost_price;
+      } else if (selectedProduct && selectedProduct.price) {
+        // Fallback to price * 0.6 if cost_price not available
+        newItems[index]['unit_price'] = (selectedProduct.price * 0.6).toFixed(2);
+      }
+    }
+    
     setFormData({ ...formData, items: newItems });
   };
 
@@ -117,10 +129,22 @@ function PurchaseOrders() {
   const receiveOrder = async (orderId) => {
     if (!window.confirm('Mark this order as received and update stock?')) return;
     try {
+      // Get order items to show stock update info
+      const orderDetails = await purchaseOrders.getDetails(orderId);
+      
       await purchaseOrders.receive(orderId);
-      alert('Order received and stock updated successfully!');
+      
+      // Show success message with stock update details
+      const itemsInfo = orderDetails.data.items
+        .map(item => `${item.product_name}: +${item.quantity}`)
+        .join(', ');
+      
+      alert(`Order received successfully!\n\nStock updated:\n${itemsInfo}\n\nRefreshing data...`);
+      
       setSelectedOrder(null);
-      loadData();
+      await loadData(); // Reload all data including products
+      
+      alert('✓ Product stock has been updated. Check the Products page to see the new quantities!');
     } catch (error) {
       alert('Failed to receive order: ' + (error.response?.data?.detail || error.message));
     }
@@ -222,7 +246,7 @@ function PurchaseOrders() {
                       />
                     </div>
                     <div className="item-field">
-                      <label>Unit Price *</label>
+                      <label>Unit Price * {item.unit_price && <span style={{ color: '#4CAF50', fontSize: '12px' }}>(Auto-filled)</span>}</label>
                       <input
                         type="number"
                         step="0.01"
@@ -231,6 +255,7 @@ function PurchaseOrders() {
                         onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
                         required
                         min="0"
+                        style={item.unit_price ? { borderColor: '#4CAF50' } : {}}
                       />
                     </div>
                     {formData.items.length > 1 && (

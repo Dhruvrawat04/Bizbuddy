@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -7,6 +7,7 @@ from db_config import get_engine
 import bcrypt
 import datetime
 import os
+from audit_system import log_activity
 
 app = FastAPI(title="SuperMarket Management API")
 
@@ -103,8 +104,9 @@ async def root():
     return {"message": "SuperMarket Management API", "version": "1.0"}
 
 @app.post("/api/auth/login", response_model=LoginResponse)
-async def login(credentials: LoginRequest):
+async def login(credentials: LoginRequest, request: Request):
     try:
+        print(f"Login attempt for username: {credentials.username}")
         with engine.connect() as conn:
             # First check if user exists
             res = conn.execute(text("""
@@ -122,6 +124,18 @@ async def login(credentials: LoginRequest):
             row = res.fetchone()
             
             if not row:
+                # Log failed login attempt
+                try:
+                    log_activity(
+                        username=credentials.username,
+                        action="LOGIN",
+                        status="FAILED",
+                        error_message="Invalid username",
+                        ip_address=request.client.host if request.client else None,
+                        user_agent=request.headers.get("user-agent")
+                    )
+                except Exception as log_err:
+                    print(f"Failed to log activity: {log_err}")
                 # Log attempted username for debugging
                 print(f"Login attempt failed for username: {credentials.username}")
                 res = conn.execute(text("""
@@ -133,10 +147,59 @@ async def login(credentials: LoginRequest):
         
         emp_id, name, role, stored_password = row
         
-        # Check password - stored_password is now plaintext (for demo/dev only)
-        if credentials.password != stored_password:
-            print(f"Password verification failed for {credentials.username}")
-            raise HTTPException(status_code=401, detail="Invalid password")
+        # Verify password using bcrypt
+        try:
+            if not bcrypt.checkpw(credentials.password.encode('utf-8'), stored_password.encode('utf-8')):
+                # Log failed password attempt
+                try:
+                    log_activity(
+                        user_id=emp_id,
+                        username=credentials.username,
+                        role=role,
+                        action="LOGIN",
+                        status="FAILED",
+                        error_message="Invalid password",
+                        ip_address=request.client.host if request.client else None,
+                        user_agent=request.headers.get("user-agent")
+                    )
+                except Exception as log_err:
+                    print(f"Failed to log activity: {log_err}")
+                print(f"Password verification failed for {credentials.username}")
+                raise HTTPException(status_code=401, detail="Invalid password")
+        except Exception as e:
+            # If bcrypt fails (e.g., plain text password in DB), try plain text comparison as fallback
+            print(f"Bcrypt verification failed, trying plain text: {e}")
+            if credentials.password != stored_password:
+                # Log failed password attempt
+                try:
+                    log_activity(
+                        user_id=emp_id,
+                        username=credentials.username,
+                        role=role,
+                        action="LOGIN",
+                        status="FAILED",
+                        error_message="Invalid password (plain text fallback)",
+                        ip_address=request.client.host if request.client else None,
+                        user_agent=request.headers.get("user-agent")
+                    )
+                except Exception as log_err:
+                    print(f"Failed to log activity: {log_err}")
+                print(f"Plain text password verification also failed for {credentials.username}")
+                raise HTTPException(status_code=401, detail="Invalid password")
+        
+        # Log successful login
+        try:
+            log_activity(
+                user_id=emp_id,
+                username=credentials.username,
+                role=role,
+                action="LOGIN",
+                status="SUCCESS",
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
+        except Exception as log_err:
+            print(f"Failed to log successful login: {log_err}")
         
         return LoginResponse(
             employee_id=emp_id,
@@ -156,7 +219,7 @@ async def get_products():
             result = conn.execute(text("""
                 SELECT p.product_id, p.name, p.barcode, p.price, p.stock_quantity, 
                        p.low_stock_threshold, p.category_id, c.name as category, 
-                       p.supplier_id, s.name as supplier
+                       p.supplier_id, s.name as supplier, p.cost_price
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN suppliers s ON p.supplier_id = s.supplier_id
@@ -175,7 +238,8 @@ async def get_products():
                 "category_id": r[6],
                 "category": r[7],
                 "supplier_id": r[8],
-                "supplier": r[9]
+                "supplier": r[9],
+                "cost_price": float(r[10]) if r[10] else 0
             }
             for r in rows
         ]
@@ -183,13 +247,50 @@ async def get_products():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/products/{product_id}")
+async def get_product(product_id: int):
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT p.product_id, p.name, p.barcode, p.price, p.stock_quantity, 
+                       p.low_stock_threshold, p.category_id, c.name as category, 
+                       p.supplier_id, s.name as supplier, p.cost_price
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                LEFT JOIN suppliers s ON p.supplier_id = s.supplier_id
+                WHERE p.product_id = :pid
+            """), {"pid": product_id})
+            row = result.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        product = {
+            "product_id": row[0],
+            "name": row[1],
+            "barcode": row[2],
+            "price": float(row[3]) if row[3] else 0,
+            "stock_quantity": row[4],
+            "low_stock_threshold": row[5],
+            "category_id": row[6],
+            "category": row[7],
+            "supplier_id": row[8],
+            "supplier": row[9],
+            "cost_price": float(row[10]) if row[10] else 0
+        }
+        return product
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/products")
-async def add_product(product: Product):
+async def add_product(product: Product, request: Request, employee_id: int = None, username: str = None, role: str = None):
     try:
         with engine.begin() as conn:
             result = conn.execute(text("""
-                INSERT INTO products (name, barcode, price, stock_quantity, category_id, supplier_id, low_stock_threshold)
-                VALUES (:name, :barcode, :price, :stock, :category_id, :supplier_id, :threshold)
+                INSERT INTO products (name, barcode, price, stock_quantity, category_id, supplier_id, low_stock_threshold, cost_price)
+                VALUES (:name, :barcode, :price, :stock, :category_id, :supplier_id, :threshold, :cost_price)
                 RETURNING product_id
             """), {
                 "name": product.name,
@@ -198,9 +299,27 @@ async def add_product(product: Product):
                 "stock": product.stock_quantity,
                 "category_id": product.category_id,
                 "supplier_id": product.supplier_id,
-                "threshold": product.low_stock_threshold
+                "threshold": product.low_stock_threshold,
+                "cost_price": product.price * 0.6 if not hasattr(product, 'cost_price') else product.cost_price
             })
             product_id = result.fetchone()[0]
+            
+            # LOG ACTIVITY
+            log_activity(
+                user_id=employee_id,
+                username=username,
+                role=role,
+                action="INSERT",
+                table_name="products",
+                record_id=product_id,
+                new_values={
+                    "name": product.name,
+                    "price": float(product.price),
+                    "stock": product.stock_quantity
+                },
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
         return {"message": "Product added successfully", "product_id": product_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -356,7 +475,7 @@ async def delete_category(category_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/sales")
-async def create_sale(sale: Sale):
+async def create_sale(sale: Sale, request: Request):
     try:
         total = 0.0
         cart = []
@@ -397,10 +516,18 @@ async def create_sale(sale: Sale):
                 if res.fetchone() is None:
                     raise HTTPException(status_code=404, detail="Customer not found")
             
+            # Get employee info for logging
+            emp_result = conn.execute(text("""
+                SELECT username, role FROM employees WHERE employee_id = :eid
+            """), {"eid": sale.employee_id})
+            emp_data = emp_result.fetchone()
+            emp_username = emp_data[0] if emp_data else "unknown"
+            emp_role = emp_data[1] if emp_data else "unknown"
+            
             result = conn.execute(text("""
                 INSERT INTO sales (total_amount, payment_method, customer_id, employee_id, 
-                                   discount_percentage, customer_rating, feedback)
-                VALUES (:total, :pm, :cid, :eid, :discount, :rating, :feedback)
+                                   discount_percentage, customer_rating, feedback, sale_time)
+                VALUES (:total, :pm, :cid, :eid, :discount, :rating, :feedback, CURRENT_TIMESTAMP)
                 RETURNING sale_id
             """), {
                 "total": round(total, 2),
@@ -415,13 +542,14 @@ async def create_sale(sale: Sale):
             
             for item in cart:
                 conn.execute(text("""
-                    INSERT INTO sale_items (sale_id, product_id, quantity, unit_price)
-                    VALUES (:sale_id, :pid, :qty, :price)
+                    INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal)
+                    VALUES (:sale_id, :pid, :qty, :price, :subtotal)
                 """), {
                     "sale_id": sale_id,
                     "pid": item['product_id'],
                     "qty": item['quantity'],
-                    "price": item['price']
+                    "price": item['price'],
+                    "subtotal": item['subtotal']
                 })
                 
                 conn.execute(text("""
@@ -429,6 +557,26 @@ async def create_sale(sale: Sale):
                     SET stock_quantity = stock_quantity - :qty
                     WHERE product_id = :pid
                 """), {"qty": item['quantity'], "pid": item['product_id']})
+            
+            # LOG THE SALE ACTIVITY
+            log_activity(
+                user_id=sale.employee_id,
+                username=emp_username,
+                role=emp_role,
+                action="INSERT",
+                table_name="sales",
+                record_id=sale_id,
+                new_values={
+                    "total_amount": round(total, 2),
+                    "payment_method": sale.payment_method,
+                    "customer_id": sale.customer_id,
+                    "items_count": len(cart),
+                    "discount": sale.discount_percentage
+                },
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+                status="SUCCESS"
+            )
         
         return {"message": "Sale completed successfully", "sale_id": sale_id, "total": total}
     except HTTPException:
@@ -527,7 +675,7 @@ async def get_customers():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/customers")
-async def add_customer(customer: Customer):
+async def add_customer(customer: Customer, request: Request, employee_id: int = None, username: str = None, role: str = None):
     try:
         with engine.begin() as conn:
             result = conn.execute(text("""
@@ -541,6 +689,23 @@ async def add_customer(customer: Customer):
                 "gender": customer.gender
             })
             customer_id = result.fetchone()[0]
+            
+            # LOG ACTIVITY
+            log_activity(
+                user_id=employee_id,
+                username=username,
+                role=role,
+                action="INSERT",
+                table_name="customers",
+                record_id=customer_id,
+                new_values={
+                    "name": customer.name,
+                    "phone": customer.phone,
+                    "email": customer.email
+                },
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
         return {"message": "Customer added successfully", "customer_id": customer_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -561,7 +726,7 @@ async def get_employees():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/employees")
-async def add_employee(employee: Employee):
+async def add_employee(employee: Employee, request: Request, admin_id: int = None, admin_username: str = None):
     try:
         hashed_password = bcrypt.hashpw(employee.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         with engine.begin() as conn:
@@ -576,14 +741,36 @@ async def add_employee(employee: Employee):
                 "password": hashed_password
             })
             employee_id = result.fetchone()[0]
+            
+            # LOG ACTIVITY
+            log_activity(
+                user_id=admin_id,
+                username=admin_username,
+                role="ADMIN",
+                action="INSERT",
+                table_name="employees",
+                record_id=employee_id,
+                new_values={
+                    "name": employee.name,
+                    "role": employee.role,
+                    "username": employee.username
+                },
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
         return {"message": "Employee added successfully", "employee_id": employee_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/products/{product_id}/stock")
-async def update_stock(product_id: int, stock_update: StockUpdate):
+async def update_stock(product_id: int, stock_update: StockUpdate, request: Request, employee_id: int = None, username: str = None, role: str = None):
     try:
         with engine.begin() as conn:
+            # Get old stock first
+            old_result = conn.execute(text("SELECT name, stock_quantity FROM products WHERE product_id = :pid"), {"pid": product_id})
+            old_data = old_result.fetchone()
+            old_stock = old_data[1] if old_data else 0
+            
             result = conn.execute(text("""
                 UPDATE products 
                 SET stock_quantity = stock_quantity + :qty
@@ -594,6 +781,20 @@ async def update_stock(product_id: int, stock_update: StockUpdate):
             updated = result.fetchone()
             if not updated:
                 raise HTTPException(status_code=404, detail="Product not found")
+            
+            # LOG ACTIVITY
+            log_activity(
+                user_id=employee_id,
+                username=username,
+                role=role,
+                action="UPDATE",
+                table_name="products",
+                record_id=product_id,
+                old_values={"stock_quantity": old_stock},
+                new_values={"stock_quantity": updated[1]},
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
         
         return {"message": f"Stock updated for {updated[0]}", "new_stock": updated[1]}
     except HTTPException:
@@ -749,8 +950,8 @@ async def create_purchase_order(order: PurchaseOrder):
             
             # Create purchase order
             result = conn.execute(text("""
-                INSERT INTO purchase_orders (supplier_id, status)
-                VALUES (:supplier_id, :status)
+                INSERT INTO purchase_orders (supplier_id, order_date, status)
+                VALUES (:supplier_id, CURRENT_TIMESTAMP, :status)
                 RETURNING order_id
             """), {
                 "supplier_id": order.supplier_id,
@@ -759,6 +960,7 @@ async def create_purchase_order(order: PurchaseOrder):
             order_id = result.fetchone()[0]
             
             # Add order items
+            total_amount = 0
             for item in order.items:
                 conn.execute(text("""
                     INSERT INTO purchase_order_items (order_id, product_id, quantity, unit_price)
@@ -769,6 +971,25 @@ async def create_purchase_order(order: PurchaseOrder):
                     "quantity": item.get('quantity'),
                     "unit_price": item.get('unit_price')
                 })
+                total_amount += item.get('quantity') * item.get('unit_price')
+            
+            # LOG ACTIVITY
+            log_activity(
+                user_id=order.employee_id if hasattr(order, 'employee_id') else None,
+                username=order.username if hasattr(order, 'username') else None,
+                role=order.role if hasattr(order, 'role') else None,
+                action="INSERT",
+                table_name="purchase_orders",
+                record_id=order_id,
+                new_values={
+                    "supplier_id": order.supplier_id,
+                    "items_count": len(order.items),
+                    "total_amount": round(total_amount, 2),
+                    "status": order.status
+                },
+                ip_address=None,
+                user_agent=None
+            )
         
         return {"message": "Purchase order created successfully", "order_id": order_id}
     except HTTPException:
@@ -1192,6 +1413,75 @@ async def export_inventory_status():
             for r in rows
         ]
         return {"data": inventory, "count": len(inventory)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============ AUDIT LOGS ENDPOINTS ============
+
+class AuditLogsRequest(BaseModel):
+    user_role: str
+
+@app.get("/api/audit-logs")
+async def get_audit_logs(limit: int = 50, user_role: str = None):
+    """Get recent audit logs (ADMIN and MANAGER only)"""
+    # Role-based access control
+    if user_role not in ['ADMIN', 'MANAGER']:
+        raise HTTPException(status_code=403, detail="Access denied. Admin or Manager role required.")
+    
+    try:
+        from audit_system import get_recent_logs
+        logs = get_recent_logs(limit)
+        return {"data": logs, "count": len(logs)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/audit-logs/user/{user_id}")
+async def get_user_audit_logs(user_id: int, days: int = 7, user_role: str = None):
+    """Get audit logs for a specific user (ADMIN and MANAGER only)"""
+    # Role-based access control
+    if user_role not in ['ADMIN', 'MANAGER']:
+        raise HTTPException(status_code=403, detail="Access denied. Admin or Manager role required.")
+    
+    try:
+        from audit_system import get_user_activity
+        activity = get_user_activity(user_id, days)
+        return {"data": [dict(row._mapping) for row in activity]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/audit-logs/suspicious")
+async def get_suspicious_activities(user_role: str = None):
+    """Get suspicious activity alerts (ADMIN and MANAGER only)"""
+    # Role-based access control
+    if user_role not in ['ADMIN', 'MANAGER']:
+        raise HTTPException(status_code=403, detail="Access denied. Admin or Manager role required.")
+    
+    try:
+        from audit_system import get_suspicious_activities
+        alerts = get_suspicious_activities()
+        return {
+            "failed_logins": [dict(row._mapping) for row in alerts["failed_logins"]],
+            "after_hours_activity": [dict(row._mapping) for row in alerts["after_hours_activity"]],
+            "bulk_deletions": [dict(row._mapping) for row in alerts["bulk_deletions"]]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/audit-logs/report")
+async def get_audit_report(start_date: Optional[str] = None, end_date: Optional[str] = None, user_role: str = None):
+    """Generate comprehensive audit report (ADMIN and MANAGER only)"""
+    # Role-based access control
+    if user_role not in ['ADMIN', 'MANAGER']:
+        raise HTTPException(status_code=403, detail="Access denied. Admin or Manager role required.")
+    
+    try:
+        from audit_system import generate_audit_report
+        report = generate_audit_report(start_date, end_date)
+        return {
+            "statistics": [dict(row._mapping) for row in report["statistics"]],
+            "top_users": [dict(row._mapping) for row in report["top_users"]],
+            "table_activity": [dict(row._mapping) for row in report["table_activity"]]
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
