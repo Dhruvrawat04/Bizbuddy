@@ -3,7 +3,7 @@ Database Activity Monitoring System
 Tracks all database operations for security and compliance
 """
 from sqlalchemy import text
-from db_config import get_engine
+from db import get_engine
 from datetime import datetime
 import json
 

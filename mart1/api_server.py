@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy import text
-from db_config import get_engine
+from db import get_engine
 import bcrypt
 import datetime
 import os
