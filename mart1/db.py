@@ -45,9 +45,26 @@ def get_connection_string():
 
 
 def get_engine():
-    """Creates and returns a SQLAlchemy engine instance"""
+    """
+    Creates and returns a SQLAlchemy engine instance with optimized connection pooling.
+    
+    Pool Configuration:
+    - pool_size: 20 - Number of persistent connections to keep open
+    - max_overflow: 10 - Additional connections that can be created beyond pool_size
+    - pool_timeout: 30 - Seconds to wait before giving up on getting a connection
+    - pool_recycle: 3600 - Recycle connections after 1 hour to prevent stale connections
+    - pool_pre_ping: True - Test connections before using them
+    """
     try:
-        engine = create_engine(get_connection_string(), echo=False, pool_pre_ping=True)
+        engine = create_engine(
+            get_connection_string(),
+            echo=False,
+            pool_size=20,              # Maintain 20 persistent connections
+            max_overflow=10,           # Allow 10 additional connections under load (total: 30)
+            pool_timeout=30,           # Wait up to 30 seconds for an available connection
+            pool_recycle=3600,         # Recycle connections every hour
+            pool_pre_ping=True         # Verify connection health before use
+        )
         return engine
     except Exception as e:
         print(f"Error creating SQLAlchemy engine: {e}")

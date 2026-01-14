@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -104,7 +104,7 @@ async def root():
     return {"message": "SuperMarket Management API", "version": "1.0"}
 
 @app.post("/api/auth/login", response_model=LoginResponse)
-async def login(credentials: LoginRequest, request: Request):
+async def login(credentials: LoginRequest, request: Request, background_tasks: BackgroundTasks):
     try:
         print(f"Login attempt for username: {credentials.username}")
         with engine.connect() as conn:
@@ -124,18 +124,16 @@ async def login(credentials: LoginRequest, request: Request):
             row = res.fetchone()
             
             if not row:
-                # Log failed login attempt
-                try:
-                    log_activity(
-                        username=credentials.username,
-                        action="LOGIN",
-                        status="FAILED",
-                        error_message="Invalid username",
-                        ip_address=request.client.host if request.client else None,
-                        user_agent=request.headers.get("user-agent")
-                    )
-                except Exception as log_err:
-                    print(f"Failed to log activity: {log_err}")
+                # Log failed login attempt (async - non-blocking)
+                background_tasks.add_task(
+                    log_activity,
+                    username=credentials.username,
+                    action="LOGIN",
+                    status="FAILED",
+                    error_message="Invalid username",
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent")
+                )
                 # Log attempted username for debugging
                 print(f"Login attempt failed for username: {credentials.username}")
                 res = conn.execute(text("""
@@ -150,56 +148,50 @@ async def login(credentials: LoginRequest, request: Request):
         # Verify password using bcrypt
         try:
             if not bcrypt.checkpw(credentials.password.encode('utf-8'), stored_password.encode('utf-8')):
-                # Log failed password attempt
-                try:
-                    log_activity(
-                        user_id=emp_id,
-                        username=credentials.username,
-                        role=role,
-                        action="LOGIN",
-                        status="FAILED",
-                        error_message="Invalid password",
-                        ip_address=request.client.host if request.client else None,
-                        user_agent=request.headers.get("user-agent")
-                    )
-                except Exception as log_err:
-                    print(f"Failed to log activity: {log_err}")
+                # Log failed password attempt (async - non-blocking)
+                background_tasks.add_task(
+                    log_activity,
+                    user_id=emp_id,
+                    username=credentials.username,
+                    role=role,
+                    action="LOGIN",
+                    status="FAILED",
+                    error_message="Invalid password",
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent")
+                )
                 print(f"Password verification failed for {credentials.username}")
                 raise HTTPException(status_code=401, detail="Invalid password")
         except Exception as e:
             # If bcrypt fails (e.g., plain text password in DB), try plain text comparison as fallback
             print(f"Bcrypt verification failed, trying plain text: {e}")
             if credentials.password != stored_password:
-                # Log failed password attempt
-                try:
-                    log_activity(
-                        user_id=emp_id,
-                        username=credentials.username,
-                        role=role,
-                        action="LOGIN",
-                        status="FAILED",
-                        error_message="Invalid password (plain text fallback)",
-                        ip_address=request.client.host if request.client else None,
-                        user_agent=request.headers.get("user-agent")
-                    )
-                except Exception as log_err:
-                    print(f"Failed to log activity: {log_err}")
+                # Log failed password attempt (async - non-blocking)
+                background_tasks.add_task(
+                    log_activity,
+                    user_id=emp_id,
+                    username=credentials.username,
+                    role=role,
+                    action="LOGIN",
+                    status="FAILED",
+                    error_message="Invalid password (plain text fallback)",
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent")
+                )
                 print(f"Plain text password verification also failed for {credentials.username}")
                 raise HTTPException(status_code=401, detail="Invalid password")
         
-        # Log successful login
-        try:
-            log_activity(
-                user_id=emp_id,
-                username=credentials.username,
-                role=role,
-                action="LOGIN",
-                status="SUCCESS",
-                ip_address=request.client.host if request.client else None,
-                user_agent=request.headers.get("user-agent")
-            )
-        except Exception as log_err:
-            print(f"Failed to log successful login: {log_err}")
+        # Log successful login (async - non-blocking)
+        background_tasks.add_task(
+            log_activity,
+            user_id=emp_id,
+            username=credentials.username,
+            role=role,
+            action="LOGIN",
+            status="SUCCESS",
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
         
         return LoginResponse(
             employee_id=emp_id,
@@ -285,7 +277,7 @@ async def get_product(product_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/products")
-async def add_product(product: Product, request: Request, employee_id: int = None, username: str = None, role: str = None):
+async def add_product(product: Product, request: Request, background_tasks: BackgroundTasks, employee_id: int = None, username: str = None, role: str = None):
     try:
         with engine.begin() as conn:
             result = conn.execute(text("""
@@ -304,8 +296,9 @@ async def add_product(product: Product, request: Request, employee_id: int = Non
             })
             product_id = result.fetchone()[0]
             
-            # LOG ACTIVITY
-            log_activity(
+            # LOG ACTIVITY (async - non-blocking)
+            background_tasks.add_task(
+                log_activity,
                 user_id=employee_id,
                 username=username,
                 role=role,
@@ -475,7 +468,7 @@ async def delete_category(category_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/sales")
-async def create_sale(sale: Sale, request: Request):
+async def create_sale(sale: Sale, request: Request, background_tasks: BackgroundTasks):
     try:
         total = 0.0
         cart = []
@@ -558,8 +551,9 @@ async def create_sale(sale: Sale, request: Request):
                     WHERE product_id = :pid
                 """), {"qty": item['quantity'], "pid": item['product_id']})
             
-            # LOG THE SALE ACTIVITY
-            log_activity(
+            # LOG THE SALE ACTIVITY (async - non-blocking)
+            background_tasks.add_task(
+                log_activity,
                 user_id=sale.employee_id,
                 username=emp_username,
                 role=emp_role,
@@ -675,7 +669,7 @@ async def get_customers():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/customers")
-async def add_customer(customer: Customer, request: Request, employee_id: int = None, username: str = None, role: str = None):
+async def add_customer(customer: Customer, request: Request, background_tasks: BackgroundTasks, employee_id: int = None, username: str = None, role: str = None):
     try:
         with engine.begin() as conn:
             result = conn.execute(text("""
@@ -690,8 +684,9 @@ async def add_customer(customer: Customer, request: Request, employee_id: int = 
             })
             customer_id = result.fetchone()[0]
             
-            # LOG ACTIVITY
-            log_activity(
+            # LOG ACTIVITY (async - non-blocking)
+            background_tasks.add_task(
+                log_activity,
                 user_id=employee_id,
                 username=username,
                 role=role,
@@ -726,7 +721,7 @@ async def get_employees():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/employees")
-async def add_employee(employee: Employee, request: Request, admin_id: int = None, admin_username: str = None):
+async def add_employee(employee: Employee, request: Request, background_tasks: BackgroundTasks, admin_id: int = None, admin_username: str = None):
     try:
         hashed_password = bcrypt.hashpw(employee.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         with engine.begin() as conn:
@@ -742,8 +737,9 @@ async def add_employee(employee: Employee, request: Request, admin_id: int = Non
             })
             employee_id = result.fetchone()[0]
             
-            # LOG ACTIVITY
-            log_activity(
+            # LOG ACTIVITY (async - non-blocking)
+            background_tasks.add_task(
+                log_activity,
                 user_id=admin_id,
                 username=admin_username,
                 role="ADMIN",
@@ -763,7 +759,7 @@ async def add_employee(employee: Employee, request: Request, admin_id: int = Non
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/products/{product_id}/stock")
-async def update_stock(product_id: int, stock_update: StockUpdate, request: Request, employee_id: int = None, username: str = None, role: str = None):
+async def update_stock(product_id: int, stock_update: StockUpdate, request: Request, background_tasks: BackgroundTasks, employee_id: int = None, username: str = None, role: str = None):
     try:
         with engine.begin() as conn:
             # Get old stock first
@@ -782,8 +778,9 @@ async def update_stock(product_id: int, stock_update: StockUpdate, request: Requ
             if not updated:
                 raise HTTPException(status_code=404, detail="Product not found")
             
-            # LOG ACTIVITY
-            log_activity(
+            # LOG ACTIVITY (async - non-blocking)
+            background_tasks.add_task(
+                log_activity,
                 user_id=employee_id,
                 username=username,
                 role=role,
@@ -806,26 +803,23 @@ async def update_stock(product_id: int, stock_update: StockUpdate, request: Requ
 async def get_dashboard_stats():
     try:
         with engine.connect() as conn:
-            total_products = conn.execute(text("SELECT COUNT(*) FROM products")).scalar()
-            total_sales = conn.execute(text("SELECT COUNT(*) FROM sales")).scalar()
-            total_revenue = conn.execute(text("SELECT COALESCE(SUM(total_amount), 0) FROM sales")).scalar()
-            low_stock_count = conn.execute(text("""
-                SELECT COUNT(*) FROM products 
-                WHERE stock_quantity <= low_stock_threshold
-            """)).scalar()
-            
-            recent_sales = conn.execute(text("""
-                SELECT COALESCE(SUM(total_amount), 0) 
-                FROM sales 
-                WHERE DATE(sale_time) = CURRENT_DATE
-            """)).scalar()
+            # Optimized: Single query with subqueries instead of 5 separate queries
+            # This reduces database round trips from 5 to 1, significantly improving performance
+            result = conn.execute(text("""
+                SELECT 
+                    (SELECT COUNT(*) FROM products) as total_products,
+                    (SELECT COUNT(*) FROM sales) as total_sales,
+                    (SELECT COALESCE(SUM(total_amount), 0) FROM sales) as total_revenue,
+                    (SELECT COUNT(*) FROM products WHERE stock_quantity <= low_stock_threshold) as low_stock_count,
+                    (SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE DATE(sale_time) = CURRENT_DATE) as today_sales
+            """)).fetchone()
         
         return {
-            "total_products": total_products,
-            "total_sales": total_sales,
-            "total_revenue": float(total_revenue),
-            "low_stock_count": low_stock_count,
-            "today_sales": float(recent_sales)
+            "total_products": result[0],
+            "total_sales": result[1],
+            "total_revenue": float(result[2]),
+            "low_stock_count": result[3],
+            "today_sales": float(result[4])
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -907,7 +901,7 @@ async def get_purchase_orders():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/purchase-orders")
-async def create_purchase_order(order: PurchaseOrder):
+async def create_purchase_order(order: PurchaseOrder, background_tasks: BackgroundTasks):
     try:
         with engine.begin() as conn:
             # Get supplier's category
@@ -973,8 +967,9 @@ async def create_purchase_order(order: PurchaseOrder):
                 })
                 total_amount += item.get('quantity') * item.get('unit_price')
             
-            # LOG ACTIVITY
-            log_activity(
+            # LOG ACTIVITY (async - non-blocking)
+            background_tasks.add_task(
+                log_activity,
                 user_id=order.employee_id if hasattr(order, 'employee_id') else None,
                 username=order.username if hasattr(order, 'username') else None,
                 role=order.role if hasattr(order, 'role') else None,
