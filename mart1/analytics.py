@@ -1,10 +1,8 @@
 # analytics.py
 from sqlalchemy import text
-from db import get_engine
+from db import engine
 from auth import has_permission
 from report import fetch_report
-
-engine = get_engine()
 
 # ----------------- Notification Center -----------------
 def notification_center():

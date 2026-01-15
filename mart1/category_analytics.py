@@ -1,11 +1,9 @@
 # category_analytics.py
 from sqlalchemy import text
 from tabulate import tabulate
-from db import get_engine
+from db import engine
 from auth import has_permission
 from report import fetch_report
-
-engine = get_engine()
 
 def category_performance_dashboard():
     """Comprehensive category performance analytics"""

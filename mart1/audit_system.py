@@ -3,13 +3,12 @@ Database Activity Monitoring System
 Tracks all database operations for security and compliance
 """
 from sqlalchemy import text
-from db import get_engine
+from db import engine
 from datetime import datetime
 import json
 
 def create_audit_table():
     """Creates the audit_logs table if it doesn't exist"""
-    engine = get_engine()
     
     with engine.begin() as conn:
         conn.execute(text("""
@@ -72,7 +71,6 @@ def log_activity(
         status: SUCCESS or FAILED
         error_message: Error details if action failed
     """
-    engine = get_engine()
     
     try:
         with engine.begin() as conn:
@@ -106,7 +104,6 @@ def log_activity(
 
 def get_recent_logs(limit: int = 50):
     """Get recent audit logs"""
-    engine = get_engine()
     
     with engine.connect() as conn:
         result = conn.execute(text("""
@@ -143,7 +140,6 @@ def get_recent_logs(limit: int = 50):
 
 def get_user_activity(user_id: int, days: int = 7):
     """Get all activity for a specific user"""
-    engine = get_engine()
     
     with engine.connect() as conn:
         result = conn.execute(text("""
@@ -160,7 +156,6 @@ def get_user_activity(user_id: int, days: int = 7):
 
 def get_suspicious_activities():
     """Detect suspicious patterns in audit logs"""
-    engine = get_engine()
     
     with engine.connect() as conn:
         # Multiple failed login attempts
@@ -210,7 +205,6 @@ def get_suspicious_activities():
 
 def generate_audit_report(start_date: str = None, end_date: str = None):
     """Generate comprehensive audit report"""
-    engine = get_engine()
     
     with engine.connect() as conn:
         # Overall statistics

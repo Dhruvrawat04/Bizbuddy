@@ -2,10 +2,8 @@
 # product_management.py
 from sqlalchemy import text
 from tabulate import tabulate
-from db import get_engine
+from db import engine
 from auth import has_permission, get_current_user, get_current_name
-
-engine = get_engine()
 
 # ----------------- Add Product (Admin only) -----------------
 def add_product():

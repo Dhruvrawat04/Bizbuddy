@@ -1,12 +1,9 @@
 # report.py
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from tabulate import tabulate
-from db import get_connection_string 
+from db import engine
 import datetime
-
-# ------------------ Setup Engine ------------------
-engine = create_engine(get_connection_string(), echo=False, future=True)
 
 # ------------------ Helper Function ------------------
 def fetch_report(query, report_name, file_name, params=None):

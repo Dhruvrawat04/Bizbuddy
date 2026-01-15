@@ -1,13 +1,11 @@
 # auth.py
 from sqlalchemy import text
-from db import get_engine
+from db import engine
 import getpass
 
 # Enable bcrypt for secure password authentication
 USE_BCRYPT = True
 print("🔐 Using bcrypt password authentication (secure mode)\n")
-
-engine = get_engine()
 
 # session state
 current_user = None   # employee_id

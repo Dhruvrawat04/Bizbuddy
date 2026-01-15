@@ -55,7 +55,12 @@ export const dashboard = {
   getStats: () => api.get('/dashboard/stats'),
 };
 
+// OPTIMIZED: Combined analytics endpoints into one request
 export const reports = {
+  // Get all dashboard analytics in one request (was 4 separate API calls)
+  getDashboardData: (days = 7) => api.get(`/reports/dashboard?days=${days}`),
+  
+  // Individual endpoints still available for specific use cases
   getSalesByDate: (days = 7) => api.get(`/reports/sales-by-date?days=${days}`),
   getCategorySales: () => api.get('/reports/category-sales'),
   getTopProducts: (limit = 5) => api.get(`/reports/top-products?limit=${limit}`),

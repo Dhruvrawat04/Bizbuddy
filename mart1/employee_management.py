@@ -1,12 +1,10 @@
 # employee_management.py
 from sqlalchemy import text
 from tabulate import tabulate
-from db import get_engine
+from db import engine
 import getpass
 from auth import has_permission, hash_password
 from report import fetch_report
-
-engine = get_engine()
 
 # ----------------- Admin: Manage Employees -----------------
 def manage_employees():

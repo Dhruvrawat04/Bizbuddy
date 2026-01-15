@@ -1,10 +1,8 @@
 # customer_management.py
 from sqlalchemy import text
 from tabulate import tabulate
-from db import get_engine
+from db import engine
 from auth import has_permission
-
-engine = get_engine()
 
 def manage_customers():
     """Customer management system"""

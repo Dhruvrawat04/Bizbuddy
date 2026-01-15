@@ -1,10 +1,8 @@
 # system_admin.py
 from sqlalchemy import text
-from db import get_engine
+from db import engine
 from auth import has_permission
 import datetime
-
-engine = get_engine()
 
 def system_backup():
     """Create database backup"""

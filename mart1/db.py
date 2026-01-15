@@ -69,3 +69,7 @@ def get_engine():
     except Exception as e:
         print(f"Error creating SQLAlchemy engine: {e}")
         return None
+
+
+# Singleton engine instance - shared across all modules to prevent duplicate connection pools
+engine = get_engine()

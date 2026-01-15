@@ -1,9 +1,7 @@
 # inventory_management.py
 from sqlalchemy import text
-from db import get_engine
+from db import engine
 from auth import has_permission
-
-engine = get_engine()
 
 def restock_products():
     """Manage product restocking with supplier coordination"""

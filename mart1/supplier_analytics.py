@@ -1,12 +1,10 @@
 # supplier_analytics.py - FIXED VERSION
 from sqlalchemy import text
 from tabulate import tabulate
-from db import get_engine
+from db import engine
 from auth import has_permission
 from datetime import datetime, timedelta
 import decimal
-
-engine = get_engine()
 
 def safe_float_convert(value):
     """Safely convert any value to float for calculations"""
