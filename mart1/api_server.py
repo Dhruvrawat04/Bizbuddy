@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy import text
+import math
 from db import engine
 import bcrypt
 import datetime
@@ -203,9 +204,21 @@ async def login(credentials: LoginRequest, request: Request, background_tasks: B
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/products")
-async def get_products():
+async def get_products(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM products"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
+            # Get paginated results
             result = conn.execute(text("""
                 SELECT p.product_id, p.name, p.barcode, p.price, p.stock_quantity, 
                        p.low_stock_threshold, p.category_id, c.name as category, 
@@ -214,7 +227,8 @@ async def get_products():
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN suppliers s ON p.supplier_id = s.supplier_id
                 ORDER BY p.product_id
-            """))
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         products = [
@@ -233,7 +247,17 @@ async def get_products():
             }
             for r in rows
         ]
-        return {"products": products}
+        return {
+            "products": products,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -316,31 +340,69 @@ async def add_product(product: Product, request: Request, background_tasks: Back
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/categories")
-async def get_categories():
+async def get_categories(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(100, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT category_id, name, description FROM categories ORDER BY name"))
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM categories"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
+            result = conn.execute(text("""
+                SELECT category_id, name, description 
+                FROM categories 
+                ORDER BY name
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         categories = [
             {"category_id": r[0], "name": r[1], "description": r[2]}
             for r in rows
         ]
-        return {"categories": categories}
+        return {
+            "categories": categories,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/suppliers")
-async def get_suppliers():
+async def get_suppliers(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM suppliers"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
             result = conn.execute(text("""
                 SELECT s.supplier_id, s.name, s.phone, s.email, s.address, s.reliability_score, 
                        s.last_delivery_date, s.category_id, c.name as category_name
                 FROM suppliers s
                 LEFT JOIN categories c ON s.category_id = c.category_id
                 ORDER BY s.name
-            """))
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         suppliers = [
@@ -351,7 +413,17 @@ async def get_suppliers():
             }
             for r in rows
         ]
-        return {"suppliers": suppliers}
+        return {
+            "suppliers": suppliers,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -600,9 +672,20 @@ async def create_sale(sale: Sale, request: Request, background_tasks: Background
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/sales")
-async def get_sales(limit: int = 50):
+async def get_sales(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM sales"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
             result = conn.execute(text("""
                 SELECT s.sale_id, s.sale_time, s.total_amount, s.payment_method, 
                        c.name as customer, e.name as employee,
@@ -611,8 +694,8 @@ async def get_sales(limit: int = 50):
                 LEFT JOIN customers c ON s.customer_id = c.customer_id
                 LEFT JOIN employees e ON s.employee_id = e.employee_id
                 ORDER BY s.sale_time DESC
-                LIMIT :limit
-            """), {"limit": limit})
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         sales = [
@@ -629,7 +712,17 @@ async def get_sales(limit: int = 50):
             }
             for r in rows
         ]
-        return {"sales": sales}
+        return {
+            "sales": sales,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -660,15 +753,27 @@ async def get_sale_details(sale_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/customers")
-async def get_customers():
+async def get_customers(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM customers"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
             result = conn.execute(text("""
                 SELECT customer_id, name, phone, email, gender, 
                        loyalty_points, total_spent, address, created_at 
                 FROM customers 
                 ORDER BY name
-            """))
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         customers = [
@@ -685,7 +790,17 @@ async def get_customers():
             }
             for r in rows
         ]
-        return {"customers": customers}
+        return {
+            "customers": customers,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -727,17 +842,43 @@ async def add_customer(customer: Customer, request: Request, background_tasks: B
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/employees")
-async def get_employees():
+async def get_employees(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT employee_id, name, role, username FROM employees ORDER BY name"))
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM employees"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
+            result = conn.execute(text("""
+                SELECT employee_id, name, role, username 
+                FROM employees 
+                ORDER BY name
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         employees = [
             {"employee_id": r[0], "name": r[1], "role": r[2], "username": r[3]}
             for r in rows
         ]
-        return {"employees": employees}
+        return {
+            "employees": employees,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -846,17 +987,28 @@ async def get_dashboard_stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/notifications")
-async def get_notifications():
+async def get_notifications(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM notifications"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
             result = conn.execute(text("""
                 SELECT n.notification_id, n.message, n.status, n.notification_type, 
                        n.created_at, p.name as product_name
                 FROM notifications n
                 LEFT JOIN products p ON n.product_id = p.product_id
                 ORDER BY n.created_at DESC
-                LIMIT 50
-            """))
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         notifications = [
@@ -870,7 +1022,17 @@ async def get_notifications():
             }
             for r in rows
         ]
-        return {"notifications": notifications}
+        return {
+            "notifications": notifications,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -896,16 +1058,27 @@ async def update_notification(notification_id: int, notification: NotificationUp
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/purchase-orders")
-async def get_purchase_orders():
+async def get_purchase_orders(
+    page: int = Query(1, ge=1, description="Page number (starts at 1)"),
+    page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
+):
     try:
         with engine.connect() as conn:
+            # Get total count
+            count_result = conn.execute(text("SELECT COUNT(*) FROM purchase_orders"))
+            total_items = count_result.fetchone()[0]
+            
+            # Calculate pagination
+            offset = (page - 1) * page_size
+            total_pages = math.ceil(total_items / page_size)
+            
             result = conn.execute(text("""
                 SELECT po.order_id, po.order_date, po.status, s.name as supplier_name
                 FROM purchase_orders po
                 JOIN suppliers s ON po.supplier_id = s.supplier_id
                 ORDER BY po.order_date DESC
-                LIMIT 50
-            """))
+                LIMIT :limit OFFSET :offset
+            """), {"limit": page_size, "offset": offset})
             rows = result.fetchall()
         
         orders = [
@@ -917,7 +1090,17 @@ async def get_purchase_orders():
             }
             for r in rows
         ]
-        return {"purchase_orders": orders}
+        return {
+            "purchase_orders": orders,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -2,12 +2,22 @@ import { useState, useEffect } from 'react';
 import { categories } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { FolderOpen, Plus, X, Edit2, Trash2, Tag, FileText, Package } from 'lucide-react';
+import Pagination from '../components/Pagination';
 import '../styles/Categories.css';
 
 function Categories() {
   const { user } = useAuth();
   const [categoryList, setCategoryList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 12,
+    total_items: 0,
+    total_pages: 1,
+    has_next: false,
+    has_previous: false
+  });
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentCategory, setCurrentCategory] = useState(null);
@@ -18,12 +28,16 @@ function Categories() {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+  }, [currentPage]);
 
   const loadCategories = async () => {
     try {
-      const res = await categories.getAll();
+      setLoading(true);
+      const res = await categories.getAll(currentPage, 12);
       setCategoryList(res.data.categories);
+      if (res.data.pagination) {
+        setPagination(res.data.pagination);
+      }
     } catch (error) {
       console.error('Failed to load categories:', error);
     } finally {
@@ -162,6 +176,15 @@ function Categories() {
           </div>
         ))}
       </div>
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.total_pages}
+        totalItems={pagination.total_items}
+        pageSize={pagination.page_size}
+        onPageChange={(page) => setCurrentPage(page)}
+        loading={loading}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { suppliers, categories } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Plus, X, Edit2, Trash2, Phone, Mail, MapPin, Tag } from 'lucide-react';
+import Pagination from '../components/Pagination';
 import '../styles/Suppliers.css';
 
 function Suppliers() {
@@ -9,6 +10,15 @@ function Suppliers() {
   const [supplierList, setSupplierList] = useState([]);
   const [categoryList, setCategoryList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 12,
+    total_items: 0,
+    total_pages: 1,
+    has_next: false,
+    has_previous: false
+  });
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentSupplier, setCurrentSupplier] = useState(null);
@@ -22,15 +32,19 @@ function Suppliers() {
 
   useEffect(() => {
     loadSuppliers();
-  }, []);
+  }, [currentPage]);
 
   const loadSuppliers = async () => {
     try {
+      setLoading(true);
       const [suppliersRes, categoriesRes] = await Promise.all([
-        suppliers.getAll(),
+        suppliers.getAll(currentPage, 12),
         categories.getAll(),
       ]);
       setSupplierList(suppliersRes.data.suppliers);
+      if (suppliersRes.data.pagination) {
+        setPagination(suppliersRes.data.pagination);
+      }
       setCategoryList(categoriesRes.data.categories);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -233,6 +247,15 @@ function Suppliers() {
           </div>
         ))}
       </div>
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.total_pages}
+        totalItems={pagination.total_items}
+        pageSize={pagination.page_size}
+        onPageChange={(page) => setCurrentPage(page)}
+        loading={loading}
+      />
     </div>
   );
 }

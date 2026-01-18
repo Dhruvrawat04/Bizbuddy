@@ -5,6 +5,7 @@ import { products, categories, suppliers } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Package, Plus, X, RefreshCw, Search, Edit, Trash2 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import Pagination from '../components/Pagination';
 import { TableSkeleton } from '../components/LoadingSkeleton';
 import '../styles/Products.css';
 
@@ -14,6 +15,15 @@ function Products() {
   const [categoryList, setCategoryList] = useState([]);
   const [supplierList, setSupplierList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 50,
+    total_items: 0,
+    total_pages: 1,
+    has_next: false,
+    has_previous: false
+  });
   const [showAddForm, setShowAddForm] = useState(false);
   const [showRestockForm, setShowRestockForm] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -33,7 +43,7 @@ function Products() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     // Filter suppliers based on selected category
@@ -59,19 +69,29 @@ function Products() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [productsRes, categoriesRes, suppliersRes] = await Promise.all([
-        products.getAll(),
+        products.getAll(currentPage, 50),
         categories.getAll(),
         suppliers.getAll(),
       ]);
       setProductList(productsRes.data.products);
+      if (productsRes.data.pagination) {
+        setPagination(productsRes.data.pagination);
+      }
       setCategoryList(categoriesRes.data.categories);
       setSupplierList(suppliersRes.data.suppliers);
     } catch (error) {
       console.error('Failed to load data:', error);
+      toast.error('Failed to load products');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleAddProduct = async (e) => {
@@ -247,6 +267,15 @@ function Products() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.total_pages}
+        totalItems={pagination.total_items}
+        pageSize={pagination.page_size}
+        onPageChange={handlePageChange}
+        loading={loading}
+      />
 
       {showAddForm && (
         <div className="modal" onClick={() => setShowAddForm(false)}>

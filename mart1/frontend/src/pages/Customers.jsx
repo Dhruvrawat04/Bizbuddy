@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
 import { customers } from '../services/api';
+import Pagination from '../components/Pagination';
 import '../styles/Customers.css';
 
 function Customers() {
   const [customerList, setCustomerList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 50,
+    total_items: 0,
+    total_pages: 1,
+    has_next: false,
+    has_previous: false
+  });
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -15,12 +25,16 @@ function Customers() {
 
   useEffect(() => {
     loadCustomers();
-  }, []);
+  }, [currentPage]);
 
   const loadCustomers = async () => {
     try {
-      const response = await customers.getAll();
+      setLoading(true);
+      const response = await customers.getAll(currentPage, 50);
       setCustomerList(response.data.customers);
+      if (response.data.pagination) {
+        setPagination(response.data.pagination);
+      }
     } catch (error) {
       console.error('Failed to load customers:', error);
     } finally {
@@ -91,6 +105,15 @@ function Customers() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.total_pages}
+        totalItems={pagination.total_items}
+        pageSize={pagination.page_size}
+        onPageChange={(page) => setCurrentPage(page)}
+        loading={loading}
+      />
 
       {showAddForm && (
         <div className="modal">

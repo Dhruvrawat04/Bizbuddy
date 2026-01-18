@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
 import { employees } from '../services/api';
+import Pagination from '../components/Pagination';
 import '../styles/Employees.css';
 
 function Employees() {
   const [employeeList, setEmployeeList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 50,
+    total_items: 0,
+    total_pages: 1,
+    has_next: false,
+    has_previous: false
+  });
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     name: '',
@@ -15,12 +25,16 @@ function Employees() {
 
   useEffect(() => {
     loadEmployees();
-  }, []);
+  }, [currentPage]);
 
   const loadEmployees = async () => {
     try {
-      const response = await employees.getAll();
+      setLoading(true);
+      const response = await employees.getAll(currentPage, 50);
       setEmployeeList(response.data.employees);
+      if (response.data.pagination) {
+        setPagination(response.data.pagination);
+      }
     } catch (error) {
       console.error('Failed to load employees:', error);
     } finally {
@@ -80,6 +94,15 @@ function Employees() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.total_pages}
+        totalItems={pagination.total_items}
+        pageSize={pagination.page_size}
+        onPageChange={(page) => setCurrentPage(page)}
+        loading={loading}
+      />
 
       {showAddForm && (
         <div className="modal">

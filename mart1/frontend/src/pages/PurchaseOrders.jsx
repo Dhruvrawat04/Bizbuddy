@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { purchaseOrders, suppliers, products as productsApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ShoppingCart, Plus, X, Eye, Package, Truck, Building2, Calendar, Tag, Hash, DollarSign, Minus } from 'lucide-react';
+import Pagination from '../components/Pagination';
 import '../styles/PurchaseOrders.css';
 
 function PurchaseOrders() {
@@ -11,6 +12,15 @@ function PurchaseOrders() {
   const [productList, setProductList] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 30,
+    total_items: 0,
+    total_pages: 1,
+    has_next: false,
+    has_previous: false
+  });
   const [showForm, setShowForm] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
@@ -21,7 +31,7 @@ function PurchaseOrders() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     // Filter products based on selected supplier's category
@@ -45,12 +55,16 @@ function PurchaseOrders() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [ordersRes, suppliersRes, productsRes] = await Promise.all([
-        purchaseOrders.getAll(),
+        purchaseOrders.getAll(currentPage, 30),
         suppliers.getAll(),
         productsApi.getAll(),
       ]);
       setOrderList(ordersRes.data.purchase_orders);
+      if (ordersRes.data.pagination) {
+        setPagination(ordersRes.data.pagination);
+      }
       setSupplierList(suppliersRes.data.suppliers);
       setProductList(productsRes.data.products);
     } catch (error) {
@@ -386,6 +400,15 @@ function PurchaseOrders() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.total_pages}
+        totalItems={pagination.total_items}
+        pageSize={pagination.page_size}
+        onPageChange={(page) => setCurrentPage(page)}
+        loading={loading}
+      />
     </div>
   );
 }

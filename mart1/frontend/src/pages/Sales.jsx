@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { sales, products, customers } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ShoppingCart, Plus, Minus, X, Search, CreditCard, Wallet, DollarSign, User, Star, MessageSquare, Trash2 } from 'lucide-react';
+import Pagination from '../components/Pagination';
 import '../styles/Sales.css';
 
 function Sales() {
@@ -12,6 +13,15 @@ function Sales() {
   const [productList, setProductList] = useState([]);
   const [customerList, setCustomerList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 50,
+    total_items: 0,
+    total_pages: 1,
+    has_next: false,
+    has_previous: false
+  });
   const [showNewSaleForm, setShowNewSaleForm] = useState(false);
   const [cart, setCart] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -24,16 +34,20 @@ function Sales() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentPage]);
 
   const loadData = async () => {
     try {
+      setLoading(true);
       const [salesRes, productsRes, customersRes] = await Promise.all([
-        sales.getAll(),
+        sales.getAll(currentPage, 50),
         products.getAll(),
         customers.getAll(),
       ]);
       setSalesList(salesRes.data.sales);
+      if (salesRes.data.pagination) {
+        setPagination(salesRes.data.pagination);
+      }
       setProductList(productsRes.data.products);
       setCustomerList(customersRes.data.customers);
     } catch (error) {
@@ -193,6 +207,15 @@ function Sales() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.total_pages}
+        totalItems={pagination.total_items}
+        pageSize={pagination.page_size}
+        onPageChange={(page) => setCurrentPage(page)}
+        loading={loading}
+      />
 
       {showNewSaleForm && (
         <AnimatePresence>

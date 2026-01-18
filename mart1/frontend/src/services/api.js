@@ -15,39 +15,39 @@ export const auth = {
 };
 
 export const products = {
-  getAll: () => api.get('/products'),
+  getAll: (page = 1, pageSize = 50) => api.get(`/products?page=${page}&page_size=${pageSize}`),
   add: (product) => api.post('/products', product),
   updateStock: (productId, quantity) => 
     api.put(`/products/${productId}/stock`, { product_id: productId, quantity }),
 };
 
 export const categories = {
-  getAll: () => api.get('/categories'),
+  getAll: (page = 1, pageSize = 12) => api.get(`/categories?page=${page}&page_size=${pageSize}`),
   add: (category) => api.post('/categories', category),
   update: (categoryId, category) => api.put(`/categories/${categoryId}`, category),
   delete: (categoryId) => api.delete(`/categories/${categoryId}`),
 };
 
 export const suppliers = {
-  getAll: () => api.get('/suppliers'),
+  getAll: (page = 1, pageSize = 12) => api.get(`/suppliers?page=${page}&page_size=${pageSize}`),
   add: (supplier) => api.post('/suppliers', supplier),
   update: (supplierId, supplier) => api.put(`/suppliers/${supplierId}`, supplier),
   delete: (supplierId) => api.delete(`/suppliers/${supplierId}`),
 };
 
 export const sales = {
-  getAll: (limit = 50) => api.get(`/sales?limit=${limit}`),
+  getAll: (page = 1, pageSize = 50) => api.get(`/sales?page=${page}&page_size=${pageSize}`),
   getDetails: (saleId) => api.get(`/sales/${saleId}`),
   create: (sale) => api.post('/sales', sale),
 };
 
 export const customers = {
-  getAll: () => api.get('/customers'),
+  getAll: (page = 1, pageSize = 50) => api.get(`/customers?page=${page}&page_size=${pageSize}`),
   add: (customer) => api.post('/customers', customer),
 };
 
 export const employees = {
-  getAll: () => api.get('/employees'),
+  getAll: (page = 1, pageSize = 50) => api.get(`/employees?page=${page}&page_size=${pageSize}`),
   add: (employee) => api.post('/employees', employee),
 };
 
@@ -70,12 +70,12 @@ export const reports = {
 
 
 export const notifications = {
-  getAll: () => api.get('/notifications'),
+  getAll: (page = 1, pageSize = 50) => api.get(`/notifications?page=${page}&page_size=${pageSize}`),
   update: (notificationId, status) => api.put(`/notifications/${notificationId}`, { status }),
 };
 
 export const purchaseOrders = {
-  getAll: () => api.get('/purchase-orders'),
+  getAll: (page = 1, pageSize = 30) => api.get(`/purchase-orders?page=${page}&page_size=${pageSize}`),
   getDetails: (orderId) => api.get(`/purchase-orders/${orderId}`),
   create: (order) => api.post('/purchase-orders', order),
   receive: (orderId) => api.put(`/purchase-orders/${orderId}/receive`),
