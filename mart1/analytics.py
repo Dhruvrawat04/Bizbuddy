@@ -51,18 +51,20 @@ def alert_dashboard():
         
     try:
         with engine.connect() as conn:
-            # Low stock alerts
+            # Low stock alerts (limit to top 50 most critical)
             low_stock = conn.execute(text("""
                 SELECT p.product_id, p.name, p.stock_quantity, p.low_stock_threshold
                 FROM products p
                 WHERE p.stock_quantity < p.low_stock_threshold
                 ORDER BY p.stock_quantity ASC
+                LIMIT 50
             """)).fetchall()
             
-            # Zero stock alerts
+            # Zero stock alerts (limit to 50)
             zero_stock = conn.execute(text("""
                 SELECT product_id, name FROM products 
                 WHERE stock_quantity = 0
+                LIMIT 50
             """)).fetchall()
             
             print("\n🚨 CRITICAL ALERTS DASHBOARD")

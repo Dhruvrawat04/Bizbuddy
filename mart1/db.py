@@ -5,10 +5,10 @@ import urllib.parse
 
 # Supabase PostgreSQL Configuration
 # Database credentials from environment variables
-DB_HOST = os.getenv("PGHOST", "aws-1-ap-southeast-2.pooler.supabase.com")
+DB_HOST = os.getenv("PGHOST", "db.maiayxnydpqptikawkhs.supabase.co")
 DB_NAME = os.getenv("PGDATABASE", "postgres")
-DB_USER = os.getenv("PGUSER", "postgres.xfdnitgnewcjicojwpdp")
-DB_PASS = os.getenv("PGPASSWORD", "ZXCV@123")
+DB_USER = os.getenv("PGUSER", "postgres")
+DB_PASS = os.getenv("PGPASSWORD", "Qwer@#_123456789012")
 DB_PORT = os.getenv("PGPORT", "5432")
 
 # URL encode special characters in password for SQLAlchemy
@@ -49,21 +49,23 @@ def get_engine():
     Creates and returns a SQLAlchemy engine instance with optimized connection pooling.
     
     Pool Configuration:
-    - pool_size: 20 - Number of persistent connections to keep open
-    - max_overflow: 10 - Additional connections that can be created beyond pool_size
-    - pool_timeout: 30 - Seconds to wait before giving up on getting a connection
+    - pool_size: 50 - Number of persistent connections to keep open (increased for production)
+    - max_overflow: 20 - Additional connections that can be created beyond pool_size
+    - pool_timeout: 5 - Seconds to wait before giving up on getting a connection (reduced for faster failure)
     - pool_recycle: 3600 - Recycle connections after 1 hour to prevent stale connections
     - pool_pre_ping: True - Test connections before using them
+    - echo_pool: False - Disable connection pool logging for performance
     """
     try:
         engine = create_engine(
             get_connection_string(),
             echo=False,
-            pool_size=20,              # Maintain 20 persistent connections
-            max_overflow=10,           # Allow 10 additional connections under load (total: 30)
-            pool_timeout=30,           # Wait up to 30 seconds for an available connection
+            pool_size=50,              # Maintain 50 persistent connections (optimized for production)
+            max_overflow=20,           # Allow 20 additional connections under load (total: 70)
+            pool_timeout=5,            # Wait up to 5 seconds for an available connection (fail fast)
             pool_recycle=3600,         # Recycle connections every hour
-            pool_pre_ping=True         # Verify connection health before use
+            pool_pre_ping=True,        # Verify connection health before use
+            echo_pool=False            # Disable pool logging for performance
         )
         return engine
     except Exception as e:

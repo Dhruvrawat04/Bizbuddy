@@ -964,25 +964,34 @@ async def update_stock(product_id: int, stock_update: StockUpdate, request: Requ
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats():
     try:
-        with engine.connect() as conn:
-            # Optimized: Single query with subqueries instead of 5 separate queries
-            # This reduces database round trips from 5 to 1, significantly improving performance
-            result = conn.execute(text("""
-                SELECT 
-                    (SELECT COUNT(*) FROM products) as total_products,
-                    (SELECT COUNT(*) FROM sales) as total_sales,
-                    (SELECT COALESCE(SUM(total_amount), 0) FROM sales) as total_revenue,
-                    (SELECT COUNT(*) FROM products WHERE stock_quantity <= low_stock_threshold) as low_stock_count,
-                    (SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE DATE(sale_time) = CURRENT_DATE) as today_sales
-            """)).fetchone()
+        # Import cache layer for performance
+        from cache_layer import get_cached_or_fetch, CACHE_KEYS
         
-        return {
-            "total_products": result[0],
-            "total_sales": result[1],
-            "total_revenue": float(result[2]),
-            "low_stock_count": result[3],
-            "today_sales": float(result[4])
-        }
+        def fetch_stats():
+            with engine.connect() as conn:
+                # Optimized: Single query with subqueries instead of 5 separate queries
+                # This reduces database round trips from 5 to 1, significantly improving performance
+                result = conn.execute(text("""
+                    SELECT 
+                        (SELECT COUNT(*) FROM products) as total_products,
+                        (SELECT COUNT(*) FROM sales) as total_sales,
+                        (SELECT COALESCE(SUM(total_amount), 0) FROM sales) as total_revenue,
+                        (SELECT COUNT(*) FROM products WHERE stock_quantity <= low_stock_threshold) as low_stock_count,
+                        (SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE DATE(sale_time) = CURRENT_DATE) as today_sales
+                """)).fetchone()
+            
+            return {
+                "total_products": result[0],
+                "total_sales": result[1],
+                "total_revenue": float(result[2]),
+                "low_stock_count": result[3],
+                "today_sales": float(result[4])
+            }
+        
+        # Cache for 2 minutes (dashboard data changes frequently)
+        stats = get_cached_or_fetch(CACHE_KEYS['DASHBOARD_STATS'], fetch_stats, ttl_seconds=120)
+        return stats
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

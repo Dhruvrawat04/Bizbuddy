@@ -30,6 +30,15 @@ env/
 .env.local
 .env.*.local
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Deployment configs (customize per deployment)
+app.yaml
+Procfile
+
 # IDEs
 .vscode/
 .idea/

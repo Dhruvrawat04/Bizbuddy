@@ -11,15 +11,17 @@ def process_sale():
         return
 
     cart = []
+    cart_items = []  # Temporary list to collect items before validation
     total = 0.0
     current_user = get_current_user()
     current_name = get_current_name()
 
+    # First, show products once at the start
+    from product_management import view_products
+    view_products()
+    
+    # Collect all items first (no DB queries in loop)
     while True:
-        # Import here to avoid circular import
-        from product_management import view_products
-        view_products()
-        
         product_id = input("Enter Product ID (or 'done' to finish): ").strip()
         if product_id.lower() == 'done':
             break
@@ -39,39 +41,58 @@ def process_sale():
             print("❌ Invalid number. Try again.")
             continue
 
-        try:
-            with engine.connect() as conn:
-                result = conn.execute(text("""
-                    SELECT name, price, stock_quantity
-                    FROM products
-                    WHERE product_id = :pid
-                """), {"pid": pid})
-                product_data = result.fetchone()
+        cart_items.append({'product_id': pid, 'quantity': quantity})
+        print(f"✅ Added Product ID {pid} (Qty: {quantity}) to cart")
 
-            if not product_data:
-                print("❌ Product ID not found.")
+    if not cart_items:
+        print("❌ Cart is empty. Sale cancelled.")
+        return
+
+    # OPTIMIZED: Batch fetch all products in ONE query instead of N queries
+    try:
+        with engine.connect() as conn:
+            product_ids = [item['product_id'] for item in cart_items]
+            placeholders = ','.join([str(pid) for pid in product_ids])
+            
+            result = conn.execute(text(f"""
+                SELECT product_id, name, price, stock_quantity
+                FROM products
+                WHERE product_id IN ({placeholders})
+            """))
+            products_map = {row[0]: {'name': row[1], 'price': float(row[2]), 'stock': row[3]} 
+                          for row in result.fetchall()}
+        
+        # Validate all items and build cart
+        for item in cart_items:
+            pid = item['product_id']
+            quantity = item['quantity']
+            
+            if pid not in products_map:
+                print(f"❌ Product ID {pid} not found. Skipping...")
                 continue
-            if product_data[2] < quantity:
-                print(f"❌ Only {product_data[2]} units in stock.")
+                
+            product_data = products_map[pid]
+            if product_data['stock'] < quantity:
+                print(f"❌ Only {product_data['stock']} units in stock for {product_data['name']}. Skipping...")
                 continue
 
-            item_total = float(product_data[1]) * quantity
+            item_total = product_data['price'] * quantity
             cart.append({
                 'product_id': pid,
-                'name': product_data[0],
-                'price': float(product_data[1]),
+                'name': product_data['name'],
+                'price': product_data['price'],
                 'quantity': quantity,
                 'item_total': item_total
             })
             total += item_total
-            print(f"✅ Added {quantity} x {product_data[0]}. Item Total: ₹{item_total:.2f}")
+            print(f"✅ Validated: {quantity} x {product_data['name']} = ₹{item_total:.2f}")
 
-        except Exception as e:
-            print(f"❌ Database error: {e}")
-            return
+    except Exception as e:
+        print(f"❌ Database error: {e}")
+        return
 
     if not cart:
-        print("❌ Cart is empty. Sale cancelled.")
+        print("❌ No valid items in cart. Sale cancelled.")
         return
 
     # Payment
