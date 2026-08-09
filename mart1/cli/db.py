@@ -3,21 +3,17 @@ from sqlalchemy import create_engine
 import psycopg2
 import urllib.parse
 
-# Database configuration
-# Prefer a full DATABASE_URL when provided, otherwise fall back to local PostgreSQL defaults.
-DATABASE_URL = os.getenv("DATABASE_URL")
-DB_HOST = os.getenv("PGHOST", "localhost")
-DB_NAME = os.getenv("PGDATABASE", "mart_db")
+# Supabase PostgreSQL Configuration
+# Database credentials from environment variables
+DB_HOST = os.getenv("PGHOST", "db.maiayxnydpqptikawkhs.supabase.co")
+DB_NAME = os.getenv("PGDATABASE", "postgres")
 DB_USER = os.getenv("PGUSER", "postgres")
-DB_PASS = os.getenv("PGPASSWORD", "")
+DB_PASS = os.getenv("PGPASSWORD", "Qwer@#_123456789012")
 DB_PORT = os.getenv("PGPORT", "5432")
 
-if DATABASE_URL:
-    CONNECTION_STRING = DATABASE_URL
-else:
-    # URL encode special characters in password for SQLAlchemy
-    encoded_pass = urllib.parse.quote_plus(DB_PASS)
-    CONNECTION_STRING = f"postgresql+psycopg2://{DB_USER}:{encoded_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# URL encode special characters in password for SQLAlchemy
+encoded_pass = urllib.parse.quote_plus(DB_PASS)
+CONNECTION_STRING = f"postgresql+psycopg2://{DB_USER}:{encoded_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
 def get_connection():
@@ -61,10 +57,6 @@ def get_engine():
     - echo_pool: False - Disable connection pool logging for performance
     """
     try:
-        if DATABASE_URL is None:
-            if not DB_PASS:
-                print("Set PGPASSWORD in your environment or .env file for local PostgreSQL access.")
-            print(f"Using local PostgreSQL at {DB_HOST}:{DB_PORT}/{DB_NAME}")
         engine = create_engine(
             get_connection_string(),
             echo=False,

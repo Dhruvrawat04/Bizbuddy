@@ -73,6 +73,8 @@ Before running this project on your PC, ensure you have:
 3. **PostgreSQL 12+** - [Download PostgreSQL](https://www.postgresql.org/download/)
 4. **Git** (optional) - [Download Git](https://git-scm.com/)
 
+By default the backend now expects a local PostgreSQL database. If you already have a remote connection string, set `DATABASE_URL` instead.
+
 ## 🔧 Installation & Setup
 
 ### Step 1: Clone or Download the Project
@@ -154,6 +156,8 @@ cd supermarket-management
    PGPASSWORD=your_postgres_password
    PGPORT=5432
    ```
+
+   Or set a single `DATABASE_URL` value if you prefer.
 
 ### Step 4: Frontend Setup
 

@@ -1,4 +1,3 @@
-
 # product_management.py
 from sqlalchemy import text
 from tabulate import tabulate

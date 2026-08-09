@@ -1,5 +1,13 @@
-# cli.py - MAIN ENTRY POINT
+# Standalone CLI entry point
+import sys
 import datetime
+
+from pathlib import Path
+
+CURRENT_DIR = Path(__file__).resolve().parent
+if str(CURRENT_DIR) not in sys.path:
+    sys.path.insert(0, str(CURRENT_DIR))
+
 from auth import login, logout, get_current_role, get_current_name
 
 # Import all management modules
@@ -12,16 +20,14 @@ try:
     from inventory_management import restock_products, bulk_stock_update
     from customer_management import manage_customers
     from system_admin import system_health_check, system_backup, purge_old_data
-    from inventory_optimization import apply_clearance_pricing,inventory_health_dashboard
-    # New analytics modules
+    from inventory_optimization import apply_clearance_pricing, inventory_health_dashboard
     from category_analytics import category_performance_dashboard, set_category_thresholds
     from supplier_analytics import supplier_scorecard_system, update_supplier_reliability
     from inventory_optimization import dead_stock_identification, generate_clearance_recommendations
-    
 except ImportError as e:
     print(f"❌ Import error: {e}")
-    print("Please make sure all module files are in the same directory.")
-    exit(1)
+    print("Please make sure all CLI module files are in this folder.")
+    raise SystemExit(1)
 
 
 # ----------------- Main Menu -----------------
@@ -33,17 +39,17 @@ def main_menu():
     while True:
         current_role = get_current_role()
         current_name = get_current_name()
-        
-        print("\n" + "="*60)
+
+        print("\n" + "=" * 60)
         print("=== 🏪 SuperMarket Inventory & Billing System ===")
-        print("="*60)
+        print("=" * 60)
         print(f"👤 User: {current_name} | 🎯 Role: {current_role}")
         print(f"🕒 Logged in: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("-"*60)
-        
+        print("-" * 60)
+
         if current_role == "CASHIER":
             print("1. 📋 View Products")
-            print("2. 💰 Process Sale") 
+            print("2. 💰 Process Sale")
             print("3. 🔔 My Notifications")
             print("4. 🚪 Logout / Exit")
 
@@ -53,7 +59,6 @@ def main_menu():
             elif choice == '2':
                 process_sale()
             elif choice == '3':
-                # Simple notification view for cashiers
                 from analytics import notification_center
                 notification_center()
             elif choice == '4':
@@ -67,10 +72,10 @@ def main_menu():
             print("2. 💰 Process Sale")
             print("3. 📊 View Reports")
             print("4. 🔔 Notification Center")
-            print("5. 🚨 Alert Dashboard") 
+            print("5. 🚨 Alert Dashboard")
             print("6. 📦 Restock Products")
             print("7. 📈 Category Performance")
-            print("8. 🏆 Supplier Scorecards") 
+            print("8. 🏆 Supplier Scorecards")
             print("9. 📦 Dead Stock Analysis")
             print("10. 👥 Manage Customers")
             print("11. 🏥 System Health Check")
@@ -118,7 +123,7 @@ def main_menu():
             print("10. 🔄 Bulk Stock Update")
             print("11. 📈 Category Performance")
             print("12. 🏆 Supplier Scorecards")
-            print("13. 📦 Dead Stock Analysis") 
+            print("13. 📦 Dead Stock Analysis")
             print("14. 🎪 Clearance Recommendations")
             print("15. ⚙️ Category Thresholds")
             print("16. 🔄 Supplier Reliability")
@@ -175,8 +180,7 @@ def main_menu():
             elif choice == '22':
                 inventory_health_dashboard()
             elif choice == '23':
-                
-                apply_clearance_pricing()  
+                apply_clearance_pricing()
                 break
             else:
                 print("❌ Invalid choice, try again!")
@@ -189,31 +193,31 @@ def main_menu():
 # ----------------- Quick Start Helper -----------------
 def quick_start_guide():
     """Display quick start guide for new users"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚀 QUICK START GUIDE")
-    print("="*60)
+    print("=" * 60)
     print("For Demo Purposes, use these credentials:")
     print("👤 ADMIN:     username='alicej'     password='admin123'")
-    print("👤 MANAGER:   username='carold'     password='manager123'") 
+    print("👤 MANAGER:   username='carold'     password='manager123'")
     print("👤 CASHIER:   username='emma'       password='cashier123'")
-    print("-"*60)
+    print("-" * 60)
     print("💡 Recommended First Steps:")
     print("1. Login as ADMIN for full system access")
     print("2. View Products to see current inventory")
     print("3. Try Category Performance for analytics")
     print("4. Check Supplier Scorecards for vendor insights")
-    print("="*60)
+    print("=" * 60)
 
 
 # ----------------- System Info -----------------
 def system_info():
     """Display system information"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🏪 SUPERMARKET MANAGEMENT SYSTEM v2.0")
-    print("="*60)
+    print("=" * 60)
     print("📊 MODULES INCLUDED:")
     print("  ✅ Inventory Management with Auto-stock tracking")
-    print("  ✅ Point-of-Sale (POS) System") 
+    print("  ✅ Point-of-Sale (POS) System")
     print("  ✅ Customer Relationship Management (CRM)")
     print("  ✅ Employee Management with Role-based access")
     print("  ✅ Advanced Analytics & Reporting")
@@ -222,19 +226,15 @@ def system_info():
     print("  ✅ Category Performance Analytics")
     print("  ✅ Dead Stock Identification")
     print("  ✅ System Administration Tools")
-    print("="*60)
+    print("=" * 60)
 
 
 # ----------------- Main Execution -----------------
 if __name__ == "__main__":
     try:
-        # Display welcome information
         system_info()
         quick_start_guide()
-        
-        # Start main application
         main_menu()
-        
     except KeyboardInterrupt:
         print("\n\n🛑 Application interrupted by user")
         logout()
