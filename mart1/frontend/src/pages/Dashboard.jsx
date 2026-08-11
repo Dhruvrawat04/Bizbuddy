@@ -1,48 +1,88 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { dashboard, reports } from '../services/api';
-import { Package, DollarSign, TrendingUp, AlertTriangle, Calendar, BarChart3, PieChart as PieChartIcon, Trophy, RefreshCw } from 'lucide-react';
-import { StatsCardSkeleton, ChartSkeleton } from '../components/LoadingSkeleton';
-import CountUp from '../components/CountUp';
+import { dashboard } from '../services/api';
+import { Package, DollarSign, TrendingUp, AlertTriangle, Calendar, RefreshCw } from 'lucide-react';
 import '../styles/Dashboard.css';
+import SmallLineChart from '../components/SmallLineChart';
+import SmallBarChart from '../components/SmallBarChart';
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
-  const [salesTrend, setSalesTrend] = useState([]);
-  const [categorySales, setCategorySales] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState(7);
+  const [periodLoading, setPeriodLoading] = useState(false);
+  const [salesByDay, setSalesByDay] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+  const [dateRange, setDateRange] = useState(0);
+  const requestIdRef = useRef(0);
+  const isFirstLoadRef = useRef(true);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [dateRange]);
+  const formatSalesChartData = (rows, range) => {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
 
-  const loadDashboardData = async () => {
-    setLoading(true);
+    if (range === 0 && rows.length > 60) {
+      const monthlyTotals = rows.reduce((acc, row) => {
+        const month = String(row.day).slice(0, 7);
+        acc[month] = (acc[month] || 0) + Number(row.total || 0);
+        return acc;
+      }, {});
+
+      return Object.entries(monthlyTotals).map(([day, total]) => ({ day, total }));
+    }
+
+    return rows.map((row) => ({
+      day: row.day,
+      total: Number(row.total || 0),
+    }));
+  };
+
+  const applyOverviewData = (data, range) => {
+    setStats(data.stats || null);
+    setSalesByDay(formatSalesChartData(data.sales_by_day || [], range));
+    setTopProducts(
+      (data.top_products || []).map((row) => ({
+        name: row.name,
+        value: Number(row.revenue || 0),
+      }))
+    );
+  };
+
+  const loadDashboardData = async (range = dateRange, isInitial = false) => {
+    const requestId = ++requestIdRef.current;
+
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setPeriodLoading(true);
+      setStats(null);
+      setSalesByDay([]);
+      setTopProducts([]);
+    }
+
     try {
-      const [statsRes, salesRes, categoryRes, productsRes] = await Promise.all([
-        dashboard.getStats(dateRange),
-        reports.getSalesByDate(dateRange),
-        reports.getCategorySales(),
-        reports.getTopProducts(5),
-      ]);
-      
-      setStats(statsRes.data);
-      setSalesTrend(salesRes.data.sales_by_date);
-      setCategorySales(categoryRes.data.category_sales);
-      setTopProducts(productsRes.data.top_products);
+      const response = await dashboard.getOverview(range, 5);
+      if (requestId !== requestIdRef.current) return;
+
+      applyOverviewData(response.data, range);
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       console.error('Failed to load dashboard data:', error);
     } finally {
+      if (requestId !== requestIdRef.current) return;
       setLoading(false);
+      setPeriodLoading(false);
     }
   };
 
-  const COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e'];
+  useEffect(() => {
+    loadDashboardData(dateRange, isFirstLoadRef.current);
+    isFirstLoadRef.current = false;
+  }, [dateRange]);
 
-  if (loading) {
+  const handleDateRangeChange = (value) => {
+    setDateRange(Number(value));
+  };
+
+  if (loading && !stats) {
     return (
       <div className="dashboard">
         <div className="dashboard-header">
@@ -51,17 +91,15 @@ function Dashboard() {
             <p className="dashboard-subtitle">Loading your business summary...</p>
           </div>
         </div>
-        <StatsCardSkeleton />
-        <div className="charts-grid">
-          <ChartSkeleton />
-          <ChartSkeleton />
+        <div className="loading-container">
+          <p>Loading dashboard data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <motion.div 
+    <motion.div
       className="dashboard"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -73,249 +111,146 @@ function Dashboard() {
           <p className="dashboard-subtitle">Welcome back! Here's your business summary</p>
         </div>
         <div className="dashboard-actions">
-          <motion.button 
+          <motion.button
             className="refresh-btn"
-            onClick={loadDashboardData}
+            onClick={() => loadDashboardData(dateRange, false)}
+            disabled={periodLoading}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <RefreshCw size={18} />
+            <RefreshCw size={18} className={periodLoading ? 'spinning' : ''} />
             Refresh
           </motion.button>
           <div className="date-range-selector">
             <Calendar size={18} />
             <label>Sales Period:</label>
-            <select value={dateRange} onChange={(e) => setDateRange(Number(e.target.value))}>
+            <select
+              value={dateRange}
+              onChange={(e) => handleDateRangeChange(e.target.value)}
+              disabled={periodLoading}
+            >
+              <option value={0}>All Time</option>
               <option value={7}>Last 7 Days</option>
               <option value={14}>Last 14 Days</option>
               <option value={30}>Last 30 Days</option>
               <option value={90}>Last 90 Days</option>
-              <option value={0}>All Time</option>
             </select>
           </div>
         </div>
       </div>
-      
-      <div className="stats-grid">
-        <motion.div 
-          className="stat-card gradient-blue"
-          whileHover={{ scale: 1.02, y: -4 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        >
-          <div className="stat-content">
-            <div className="stat-icon-wrapper">
-              <Package className="stat-icon" size={28} />
-            </div>
-            <div className="stat-info">
-              <h3>Total Products</h3>
-              <p className="stat-value">
-                <CountUp end={stats?.total_products || 0} />
-              </p>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          className="stat-card gradient-green"
-          whileHover={{ scale: 1.02, y: -4 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        >
-          <div className="stat-content">
-            <div className="stat-icon-wrapper">
-              <TrendingUp className="stat-icon" size={28} />
-            </div>
-            <div className="stat-info">
-              <h3>Total Sales</h3>
-              <p className="stat-value">
-                <CountUp end={stats?.total_sales || 0} />
-              </p>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          className="stat-card gradient-purple"
-          whileHover={{ scale: 1.02, y: -4 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        >
-          <div className="stat-content">
-            <div className="stat-icon-wrapper">
-              <DollarSign className="stat-icon" size={28} />
-            </div>
-            <div className="stat-info">
-              <h3>Total Revenue</h3>
-              <p className="stat-value">
-                ₹<CountUp end={parseFloat(stats?.total_revenue) || 0} duration={2000} />
-              </p>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          className="stat-card gradient-orange"
-          whileHover={{ scale: 1.02, y: -4 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        >
-          <div className="stat-content">
-            <div className="stat-icon-wrapper">
-              <AlertTriangle className="stat-icon" size={28} />
-            </div>
-            <div className="stat-info">
-              <h3>Low Stock Items</h3>
-              <p className="stat-value">
-                <CountUp end={stats?.low_stock_count || 0} />
-              </p>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          className="stat-card gradient-pink"
-          whileHover={{ scale: 1.02, y: -4 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        >
-          <div className="stat-content">
-            <div className="stat-icon-wrapper">
-              <Calendar className="stat-icon" size={28} />
-            </div>
-            <div className="stat-info">
-              <h3>Today's Sales</h3>
-              <p className="stat-value">
-                ₹<CountUp end={parseFloat(stats?.today_sales) || 0} duration={2000} />
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
 
-      <div className="charts-grid">
-        <motion.div 
-          className="chart-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <div className="chart-header">
-            <BarChart3 size={22} />
-            <h2>Sales Trend {dateRange === 0 ? '(All Time)' : `(Last ${dateRange} Days)`}</h2>
+      <div className={`dashboard-content ${periodLoading ? 'is-updating' : ''}`}>
+        {periodLoading && (
+          <div className="dashboard-period-loading">
+            <div className="loading-spinner" />
+            <p>Updating dashboard...</p>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={salesTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="date" stroke="#6b7280" style={{ fontSize: '0.875rem' }} />
-              <YAxis stroke="#6b7280" style={{ fontSize: '0.875rem' }} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  borderRadius: '12px', 
-                  border: '1px solid #e5e7eb', 
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.1)' 
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
-              <Line 
-                type="monotone" 
-                dataKey="total" 
-                stroke="#3b82f6" 
-                strokeWidth={3} 
-                name="Revenue (₹)" 
-                dot={{ fill: '#3b82f6', r: 5 }} 
-                activeDot={{ r: 7 }}
-                animationDuration={1500}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="count" 
-                stroke="#6366f1" 
-                strokeWidth={3} 
-                name="Sales Count" 
-                dot={{ fill: '#6366f1', r: 5 }} 
-                activeDot={{ r: 7 }}
-                animationDuration={1500}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </motion.div>
+        )}
 
-        <motion.div 
-          className="chart-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          <div className="chart-header">
-            <PieChartIcon size={22} />
-            <h2>Category Sales Distribution</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={categorySales}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                animationDuration={1500}
-              >
-                {categorySales.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  borderRadius: '12px', 
-                  border: '1px solid #e5e7eb', 
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.1)' 
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </motion.div>
+        <div className="stats-grid">
+          <motion.div
+            className="stat-card gradient-blue"
+            whileHover={{ scale: 1.02, y: -4 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          >
+            <div className="stat-content">
+              <div className="stat-icon-wrapper">
+                <Package className="stat-icon" size={28} />
+              </div>
+              <div className="stat-info">
+                <h3>Total Products</h3>
+                <p className="stat-value">{stats?.total_products ?? '—'}</p>
+              </div>
+            </div>
+          </motion.div>
 
-        <motion.div 
-          className="chart-card wide"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-        >
-          <div className="chart-header">
-            <Trophy size={22} />
-            <h2>Top 5 Products by Revenue</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={topProducts}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="product" stroke="#6b7280" style={{ fontSize: '0.875rem' }} />
-              <YAxis stroke="#6b7280" style={{ fontSize: '0.875rem' }} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  borderRadius: '12px', 
-                  border: '1px solid #e5e7eb', 
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.1)' 
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
-              <Bar 
-                dataKey="revenue" 
-                fill="url(#colorRevenue)" 
-                name="Revenue (₹)" 
-                radius={[8, 8, 0, 0]}
-                animationDuration={1500}
-              />
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.9}/>
-                </linearGradient>
-              </defs>
-            </BarChart>
-          </ResponsiveContainer>
-        </motion.div>
+          <motion.div
+            className="stat-card gradient-green"
+            whileHover={{ scale: 1.02, y: -4 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          >
+            <div className="stat-content">
+              <div className="stat-icon-wrapper">
+                <TrendingUp className="stat-icon" size={28} />
+              </div>
+              <div className="stat-info">
+                <h3>Total Sales</h3>
+                <p className="stat-value">{stats?.total_sales ?? '—'}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="stat-card gradient-purple"
+            whileHover={{ scale: 1.02, y: -4 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          >
+            <div className="stat-content">
+              <div className="stat-icon-wrapper">
+                <DollarSign className="stat-icon" size={28} />
+              </div>
+              <div className="stat-info">
+                <h3>Total Revenue</h3>
+                <p className="stat-value">
+                  {stats ? `₹${(parseFloat(stats.total_revenue) || 0).toFixed(2)}` : '—'}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="stat-card gradient-orange"
+            whileHover={{ scale: 1.02, y: -4 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          >
+            <div className="stat-content">
+              <div className="stat-icon-wrapper">
+                <AlertTriangle className="stat-icon" size={28} />
+              </div>
+              <div className="stat-info">
+                <h3>Low Stock Items</h3>
+                <p className="stat-value">{stats?.low_stock_count ?? '—'}</p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="stat-card gradient-pink"
+            whileHover={{ scale: 1.02, y: -4 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          >
+            <div className="stat-content">
+              <div className="stat-icon-wrapper">
+                <Calendar className="stat-icon" size={28} />
+              </div>
+              <div className="stat-info">
+                <h3>Today's Sales</h3>
+                <p className="stat-value">
+                  {stats ? `₹${(parseFloat(stats.today_sales) || 0).toFixed(2)}` : '—'}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        <div className="charts-grid">
+          {salesByDay.length > 0 ? (
+            <SmallLineChart data={salesByDay} xKey="day" dataKey="total" title="Sales Over Time" />
+          ) : (
+            <div className="chart-empty-state">
+              <h3>Sales Over Time</h3>
+              <p>{periodLoading ? 'Loading sales data...' : 'No sales data for the selected period.'}</p>
+            </div>
+          )}
+          {topProducts.length > 0 ? (
+            <SmallBarChart data={topProducts} xKey="name" dataKey="value" title="Top Products (Revenue)" />
+          ) : (
+            <div className="chart-empty-state">
+              <h3>Top Products (Revenue)</h3>
+              <p>{periodLoading ? 'Loading product data...' : 'No product sales for the selected period.'}</p>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );

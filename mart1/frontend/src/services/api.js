@@ -63,7 +63,12 @@ export const employees = {
 };
 
 export const dashboard = {
+  getOverview: (days = 0, limit = 5) =>
+    api.get(`/dashboard/overview?days=${days}&limit=${limit}`),
   getStats: (days = 7) => api.get(`/dashboard/stats?days=${days}`),
+  getSalesByDay: (days = 7) => api.get(`/dashboard/sales_by_day?days=${days}`),
+  getTopProducts: (limit = 5, days = 7) =>
+    api.get(`/dashboard/top_products?limit=${limit}&days=${days}`),
 };
 
 // OPTIMIZED: Combined analytics endpoints into one request

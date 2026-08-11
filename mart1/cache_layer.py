@@ -130,7 +130,7 @@ CACHE_KEYS = {
     'PRODUCT_COUNT': 'dashboard:product_count',
     'TOTAL_REVENUE': 'dashboard:total_revenue',
     'CATEGORY_SALES': 'analytics:category_sales',
-    'TOP_PRODUCTS': 'analytics:top_products:{}',  # Format with limit
+    'TOP_PRODUCTS': 'analytics:top_products:{}:{}',  # Format with limit and days
     'SALES_BY_DATE': 'analytics:sales_by_date:{}',  # Format with days
 }
 
