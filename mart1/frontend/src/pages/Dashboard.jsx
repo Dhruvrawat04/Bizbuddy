@@ -23,7 +23,7 @@ function Dashboard() {
     setLoading(true);
     try {
       const [statsRes, salesRes, categoryRes, productsRes] = await Promise.all([
-        dashboard.getStats(),
+        dashboard.getStats(dateRange),
         reports.getSalesByDate(dateRange),
         reports.getCategorySales(),
         reports.getTopProducts(5),
@@ -90,6 +90,7 @@ function Dashboard() {
               <option value={14}>Last 14 Days</option>
               <option value={30}>Last 30 Days</option>
               <option value={90}>Last 90 Days</option>
+              <option value={0}>All Time</option>
             </select>
           </div>
         </div>
@@ -196,7 +197,7 @@ function Dashboard() {
         >
           <div className="chart-header">
             <BarChart3 size={22} />
-            <h2>Sales Trend (Last {dateRange} Days)</h2>
+            <h2>Sales Trend {dateRange === 0 ? '(All Time)' : `(Last ${dateRange} Days)`}</h2>
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={salesTrend}>

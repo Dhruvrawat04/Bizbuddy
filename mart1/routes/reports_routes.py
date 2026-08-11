@@ -13,13 +13,24 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 async def get_sales_by_date(days: int = 7):
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT DATE(sale_time) as sale_date, COUNT(*) as count, SUM(total_amount) as total
-                FROM sales
-                WHERE sale_time >= CURRENT_DATE - CAST(:days || ' days' AS INTERVAL)
-                GROUP BY DATE(sale_time)
-                ORDER BY sale_date ASC
-            """), {"days": days})
+            # If days is 0, get all time sales; otherwise get sales from the last N days
+            if days == 0:
+                query = """
+                    SELECT DATE(sale_time) as sale_date, COUNT(*) as count, SUM(total_amount) as total
+                    FROM sales
+                    GROUP BY DATE(sale_time)
+                    ORDER BY sale_date ASC
+                """
+                result = conn.execute(text(query))
+            else:
+                query = """
+                    SELECT DATE(sale_time) as sale_date, COUNT(*) as count, SUM(total_amount) as total
+                    FROM sales
+                    WHERE sale_time >= CURRENT_DATE - CAST(:days || ' days' AS INTERVAL)
+                    GROUP BY DATE(sale_time)
+                    ORDER BY sale_date ASC
+                """
+                result = conn.execute(text(query), {"days": days})
             rows = result.fetchall()
 
         data = [
@@ -35,13 +46,25 @@ async def get_sales_by_date(days: int = 7):
 async def get_dashboard_data(days: int = 7):
     try:
         with engine.connect() as conn:
-            sales_by_date = conn.execute(text(f"""
-                SELECT DATE(sale_time) as date, COUNT(*) as count, SUM(total_amount) as total
-                FROM sales
-                WHERE sale_time >= CURRENT_DATE - CAST('{days}' AS INTEGER || ' days')::INTERVAL
-                GROUP BY DATE(sale_time)
-                ORDER BY date ASC
-            """))
+            # If days is 0, get all time sales; otherwise get sales from the last N days
+            if days == 0:
+                sales_query = """
+                    SELECT DATE(sale_time) as date, COUNT(*) as count, SUM(total_amount) as total
+                    FROM sales
+                    GROUP BY DATE(sale_time)
+                    ORDER BY date ASC
+                """
+                sales_by_date = conn.execute(text(sales_query))
+            else:
+                sales_query = f"""
+                    SELECT DATE(sale_time) as date, COUNT(*) as count, SUM(total_amount) as total
+                    FROM sales
+                    WHERE sale_time >= CURRENT_DATE - CAST('{days}' AS INTEGER || ' days')::INTERVAL
+                    GROUP BY DATE(sale_time)
+                    ORDER BY date ASC
+                """
+                sales_by_date = conn.execute(text(sales_query))
+                
             sales_data = [
                 {"date": str(r[0]), "count": r[1], "total": float(r[2]) if r[2] else 0}
                 for r in sales_by_date

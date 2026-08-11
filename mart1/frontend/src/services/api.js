@@ -10,6 +10,17 @@ const api = axios.create({
   },
 });
 
+// Add JWT token to all requests
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
 export const auth = {
   login: (credentials) => api.post('/auth/login', credentials),
 };
@@ -52,7 +63,7 @@ export const employees = {
 };
 
 export const dashboard = {
-  getStats: () => api.get('/dashboard/stats'),
+  getStats: (days = 7) => api.get(`/dashboard/stats?days=${days}`),
 };
 
 // OPTIMIZED: Combined analytics endpoints into one request
