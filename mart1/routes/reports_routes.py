@@ -5,12 +5,14 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 
 from db import engine
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
 @router.get("/sales-by-date")
-async def get_sales_by_date(days: int = 7):
+@async_route
+def get_sales_by_date(days: int = 7):
     try:
         with engine.connect() as conn:
             # If days is 0, get all time sales; otherwise get sales from the last N days
@@ -43,7 +45,8 @@ async def get_sales_by_date(days: int = 7):
 
 
 @router.get("/dashboard")
-async def get_dashboard_data(days: int = 7):
+@async_route
+def get_dashboard_data(days: int = 7):
     try:
         with engine.connect() as conn:
             # If days is 0, get all time sales; otherwise get sales from the last N days
@@ -111,7 +114,8 @@ async def get_dashboard_data(days: int = 7):
 
 
 @router.get("/category-sales")
-async def get_category_sales():
+@async_route
+def get_category_sales():
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
@@ -135,7 +139,8 @@ async def get_category_sales():
 
 
 @router.get("/top-products")
-async def get_top_products(limit: int = 5):
+@async_route
+def get_top_products(limit: int = 5):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
@@ -162,7 +167,8 @@ async def get_top_products(limit: int = 5):
 
 
 @router.get("/all-time-analysis")
-async def get_all_time_analysis():
+@async_route
+def get_all_time_analysis():
     try:
         with engine.connect() as conn:
             all_time_revenue = conn.execute(text("""

@@ -7,12 +7,14 @@ import math
 
 from db import engine
 from models import Sale
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/sales", tags=["sales"])
 
 
 @router.post("")
-async def create_sale(sale: Sale):
+@async_route
+def create_sale(sale: Sale):
     """Create a new sale transaction"""
     try:
         total = 0.0
@@ -127,7 +129,8 @@ async def create_sale(sale: Sale):
 
 
 @router.get("")
-async def get_sales(
+@async_route
+def get_sales(
     page: int = Query(1, ge=1, description="Page number (starts at 1)"),
     page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
 ):
@@ -184,7 +187,8 @@ async def get_sales(
 
 
 @router.get("/{sale_id}")
-async def get_sale_details(sale_id: int):
+@async_route
+def get_sale_details(sale_id: int):
     """Get details of a specific sale"""
     try:
         with engine.connect() as conn:

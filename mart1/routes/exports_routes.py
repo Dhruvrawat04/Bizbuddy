@@ -6,12 +6,14 @@ from sqlalchemy import text
 from typing import Optional
 
 from db import engine
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 
 @router.get("/sales")
-async def export_sales_data(limit: int = 1000, days: Optional[int] = None):
+@async_route
+def export_sales_data(limit: int = 1000, days: Optional[int] = None):
     try:
         with engine.connect() as conn:
             query = """
@@ -74,7 +76,8 @@ async def export_sales_data(limit: int = 1000, days: Optional[int] = None):
 
 
 @router.get("/products")
-async def export_products_data():
+@async_route
+def export_products_data():
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
@@ -113,7 +116,8 @@ async def export_products_data():
 
 
 @router.get("/categories-performance")
-async def export_category_performance(days: int = 30):
+@async_route
+def export_category_performance(days: int = 30):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
@@ -150,7 +154,8 @@ async def export_category_performance(days: int = 30):
 
 
 @router.get("/inventory-status")
-async def export_inventory_status():
+@async_route
+def export_inventory_status():
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""

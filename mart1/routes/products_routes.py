@@ -7,12 +7,14 @@ import math
 
 from db import engine
 from models import Product, StockUpdate
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
 
 @router.get("")
-async def get_products(
+@async_route
+def get_products(
     page: int = Query(1, ge=1, description="Page number (starts at 1)"),
     page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
 ):
@@ -72,7 +74,8 @@ async def get_products(
 
 
 @router.get("/{product_id}")
-async def get_product(product_id: int):
+@async_route
+def get_product(product_id: int):
     """Get a single product by ID"""
     try:
         with engine.connect() as conn:
@@ -111,7 +114,8 @@ async def get_product(product_id: int):
 
 
 @router.post("")
-async def add_product(product: Product):
+@async_route
+def add_product(product: Product):
     """Add a new product"""
     try:
         with engine.begin() as conn:
@@ -137,7 +141,8 @@ async def add_product(product: Product):
 
 
 @router.put("/{product_id}/stock")
-async def update_stock(product_id: int, stock_update: StockUpdate):
+@async_route
+def update_stock(product_id: int, stock_update: StockUpdate):
     """Update product stock quantity"""
     try:
         with engine.begin() as conn:

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from typing import Optional
 
 from audit_system import get_recent_logs, get_user_activity, get_suspicious_activities, generate_audit_report
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/audit-logs", tags=["audit-logs"])
 
@@ -15,7 +16,8 @@ def _check_role(user_role: Optional[str]):
 
 
 @router.get("")
-async def get_audit_logs(limit: int = 50, user_role: str = None):
+@async_route
+def get_audit_logs(limit: int = 50, user_role: str = None):
     _check_role(user_role)
     try:
         logs = get_recent_logs(limit)
@@ -25,7 +27,8 @@ async def get_audit_logs(limit: int = 50, user_role: str = None):
 
 
 @router.get("/user/{user_id}")
-async def get_user_audit_logs(user_id: int, days: int = 7, user_role: str = None):
+@async_route
+def get_user_audit_logs(user_id: int, days: int = 7, user_role: str = None):
     _check_role(user_role)
     try:
         activity = get_user_activity(user_id, days)
@@ -35,7 +38,8 @@ async def get_user_audit_logs(user_id: int, days: int = 7, user_role: str = None
 
 
 @router.get("/suspicious")
-async def get_suspicious_activities_route(user_role: str = None):
+@async_route
+def get_suspicious_activities_route(user_role: str = None):
     _check_role(user_role)
     try:
         alerts = get_suspicious_activities()
@@ -49,7 +53,8 @@ async def get_suspicious_activities_route(user_role: str = None):
 
 
 @router.get("/report")
-async def get_audit_report(start_date: Optional[str] = None, end_date: Optional[str] = None, user_role: str = None):
+@async_route
+def get_audit_report(start_date: Optional[str] = None, end_date: Optional[str] = None, user_role: str = None):
     _check_role(user_role)
     try:
         report = generate_audit_report(start_date, end_date)

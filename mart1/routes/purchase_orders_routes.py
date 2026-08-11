@@ -7,12 +7,14 @@ import math
 
 from db import engine
 from models import PurchaseOrder
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/purchase-orders", tags=["purchase-orders"])
 
 
 @router.get("")
-async def get_purchase_orders(
+@async_route
+def get_purchase_orders(
     page: int = Query(1, ge=1, description="Page number (starts at 1)"),
     page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
 ):
@@ -61,7 +63,8 @@ async def get_purchase_orders(
 
 
 @router.post("")
-async def create_purchase_order(order: PurchaseOrder):
+@async_route
+def create_purchase_order(order: PurchaseOrder):
     """Create a new purchase order"""
     try:
         with engine.begin() as conn:
@@ -140,7 +143,8 @@ async def create_purchase_order(order: PurchaseOrder):
 
 
 @router.get("/{order_id}")
-async def get_purchase_order_details(order_id: int):
+@async_route
+def get_purchase_order_details(order_id: int):
     """Get details of a specific purchase order"""
     try:
         with engine.connect() as conn:
@@ -167,7 +171,8 @@ async def get_purchase_order_details(order_id: int):
 
 
 @router.put("/{order_id}/receive")
-async def receive_purchase_order(order_id: int):
+@async_route
+def receive_purchase_order(order_id: int):
     """Receive a purchase order and update stock"""
     try:
         with engine.begin() as conn:

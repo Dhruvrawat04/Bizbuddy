@@ -8,12 +8,14 @@ import bcrypt
 
 from db import engine
 from models import Employee
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
 
 @router.get("")
-async def get_employees(
+@async_route
+def get_employees(
     page: int = Query(1, ge=1, description="Page number (starts at 1)"),
     page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
 ):
@@ -56,7 +58,8 @@ async def get_employees(
 
 
 @router.post("")
-async def add_employee(employee: Employee):
+@async_route
+def add_employee(employee: Employee):
     """Add a new employee"""
     try:
         hashed_password = bcrypt.hashpw(employee.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')

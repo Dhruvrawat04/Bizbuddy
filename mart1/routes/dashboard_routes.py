@@ -6,12 +6,14 @@ from sqlalchemy import text
 
 from db import engine
 from cache_layer import get_cached_or_fetch, CACHE_KEYS
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 @router.get("/stats")
-async def get_dashboard_stats(days: int = Query(7, ge=0, le=365, description="Number of days to look back (0 for all time)")):
+@async_route
+def get_dashboard_stats(days: int = Query(7, ge=0, le=365, description="Number of days to look back (0 for all time)")):
     """Get dashboard statistics"""
     try:
         def fetch_stats():
@@ -59,7 +61,8 @@ async def get_dashboard_stats(days: int = Query(7, ge=0, le=365, description="Nu
 
 
 @router.get("/sales_by_day")
-async def get_sales_by_day(days: int = Query(7, ge=0, le=365, description="Number of days to look back (0 for all time)")):
+@async_route
+def get_sales_by_day(days: int = Query(7, ge=0, le=365, description="Number of days to look back (0 for all time)")):
     """Return sales totals grouped by date for the given range"""
     try:
         def fetch_sales():
@@ -94,7 +97,8 @@ async def get_sales_by_day(days: int = Query(7, ge=0, le=365, description="Numbe
 
 
 @router.get("/top_products")
-async def get_top_products(
+@async_route
+def get_top_products(
     limit: int = Query(5, ge=1, le=50, description="Number of top products to return"),
     days: int = Query(7, ge=0, le=365, description="Number of days to look back (0 for all time)")
 ):

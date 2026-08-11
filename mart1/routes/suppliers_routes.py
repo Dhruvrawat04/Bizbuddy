@@ -7,12 +7,14 @@ import math
 
 from db import engine
 from models import Supplier
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/suppliers", tags=["suppliers"])
 
 
 @router.get("")
-async def get_suppliers(
+@async_route
+def get_suppliers(
     page: int = Query(1, ge=1, description="Page number (starts at 1)"),
     page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
 ):
@@ -61,7 +63,8 @@ async def get_suppliers(
 
 
 @router.post("")
-async def add_supplier(supplier: Supplier):
+@async_route
+def add_supplier(supplier: Supplier):
     """Add a new supplier"""
     try:
         with engine.begin() as conn:
@@ -83,7 +86,8 @@ async def add_supplier(supplier: Supplier):
 
 
 @router.put("/{supplier_id}")
-async def update_supplier(supplier_id: int, supplier: Supplier):
+@async_route
+def update_supplier(supplier_id: int, supplier: Supplier):
     """Update an existing supplier"""
     try:
         with engine.begin() as conn:
@@ -110,7 +114,8 @@ async def update_supplier(supplier_id: int, supplier: Supplier):
 
 
 @router.delete("/{supplier_id}")
-async def delete_supplier(supplier_id: int):
+@async_route
+def delete_supplier(supplier_id: int):
     """Delete a supplier"""
     try:
         with engine.begin() as conn:

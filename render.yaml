@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: mart1-api
+    rootDir: mart1
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python init_db.py && uvicorn api_server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mart1-db
+          property: connectionString
+      - key: FRONTEND_URL
+        value: https://mart1-frontend.onrender.com
+
+  - type: static
+    name: mart1-frontend
+    rootDir: mart1/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://mart1-api.onrender.com/api
+
+databases:
+  - name: mart1-db
+    databaseName: mart1_db
+    user: mart1_user
+    plan: free

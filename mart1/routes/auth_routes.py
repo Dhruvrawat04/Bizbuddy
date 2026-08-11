@@ -11,6 +11,7 @@ import os
 
 from db import engine
 from models import LoginRequest, LoginResponse, TokenData
+from routes.async_utils import async_route
 
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-12345678")
@@ -33,13 +34,15 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 @router.get("/health")
-async def auth_health():
+@async_route
+def auth_health():
     """Check if auth routes are loaded"""
     return {"status": "ok", "message": "Auth routes loaded successfully"}
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(credentials: LoginRequest):
+@async_route
+def login(credentials: LoginRequest):
     """
     Authenticate user with username and password.
     Returns JWT access token and user information.
@@ -106,7 +109,8 @@ async def login(credentials: LoginRequest):
 
 
 @router.get("/verify")
-async def verify_token(authorization: Optional[str] = Header(None)):
+@async_route
+def verify_token(authorization: Optional[str] = Header(None)):
     """Verify JWT token and return current user data"""
     try:
         if authorization is None:

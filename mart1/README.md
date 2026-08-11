@@ -176,6 +176,16 @@ cd supermarket-management
    cd ..
    ```
 
+## 🚀 Render Deployment
+
+This repository includes a Render blueprint at the workspace root: [render.yaml](../render.yaml).
+
+1. Create a new Render Blueprint from the repo root.
+2. Let Render create the `mart1-db` PostgreSQL service, or attach an existing PostgreSQL database to `mart1-api`.
+3. Keep the backend service env var `FRONTEND_URL` aligned with the deployed frontend URL.
+4. The backend start command runs `python init_db.py` before Uvicorn so the schema in [schema[1].sql](schema%5B1%5D.sql) is loaded on first deploy.
+5. If you change the service names or domains, update `VITE_API_URL` and `FRONTEND_URL` accordingly.
+
 ## ▶️ Running the Application
 
 You need to run **both** backend and frontend servers:

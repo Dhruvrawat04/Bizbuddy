@@ -7,12 +7,14 @@ import math
 
 from db import engine
 from models import Category
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 
 @router.get("")
-async def get_categories(
+@async_route
+def get_categories(
     page: int = Query(1, ge=1, description="Page number (starts at 1)"),
     page_size: int = Query(100, ge=1, le=500, description="Number of items per page (max 500)")
 ):
@@ -55,7 +57,8 @@ async def get_categories(
 
 
 @router.post("")
-async def add_category(category: Category):
+@async_route
+def add_category(category: Category):
     """Add a new category"""
     try:
         with engine.begin() as conn:
@@ -74,7 +77,8 @@ async def add_category(category: Category):
 
 
 @router.put("/{category_id}")
-async def update_category(category_id: int, category: Category):
+@async_route
+def update_category(category_id: int, category: Category):
     """Update an existing category"""
     try:
         with engine.begin() as conn:
@@ -98,7 +102,8 @@ async def update_category(category_id: int, category: Category):
 
 
 @router.delete("/{category_id}")
-async def delete_category(category_id: int):
+@async_route
+def delete_category(category_id: int):
     """Delete a category"""
     try:
         with engine.begin() as conn:

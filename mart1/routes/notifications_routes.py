@@ -7,12 +7,14 @@ import math
 
 from db import engine
 from models import NotificationUpdate
+from routes.async_utils import async_route
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
 
 @router.get("")
-async def get_notifications(
+@async_route
+def get_notifications(
     page: int = Query(1, ge=1, description="Page number (starts at 1)"),
     page_size: int = Query(50, ge=1, le=500, description="Number of items per page (max 500)")
 ):
@@ -61,7 +63,8 @@ async def get_notifications(
 
 
 @router.put("/{notification_id}")
-async def update_notification(notification_id: int, notification: NotificationUpdate):
+@async_route
+def update_notification(notification_id: int, notification: NotificationUpdate):
     try:
         with engine.begin() as conn:
             result = conn.execute(text("""
