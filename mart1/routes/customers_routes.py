@@ -1,13 +1,15 @@
 """
 Customer management routes
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from sqlalchemy import text
 import math
+from typing import Optional
 
 from db import engine
 from models import Customer
 from routes.async_utils import async_route
+from routes.audit_helper import model_to_dict, resolve_actor, write_audit
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 
@@ -69,7 +71,11 @@ def get_customers(
 
 @router.post("")
 @async_route
-def add_customer(customer: Customer):
+def add_customer(
+    customer: Customer,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Add a new customer"""
     try:
         with engine.begin() as conn:
@@ -84,6 +90,15 @@ def add_customer(customer: Customer):
                 "gender": customer.gender
             })
             customer_id = result.fetchone()[0]
+
+        write_audit(
+            action="INSERT",
+            table_name="customers",
+            record_id=customer_id,
+            new_values=model_to_dict(customer),
+            actor=resolve_actor(authorization),
+            request=request,
+        )
             
         return {"message": "Customer added successfully", "customer_id": customer_id}
     except Exception as e:

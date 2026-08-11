@@ -1,13 +1,15 @@
 """
 Supplier management routes
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from sqlalchemy import text
 import math
+from typing import Optional
 
 from db import engine
 from models import Supplier
 from routes.async_utils import async_route
+from routes.audit_helper import model_to_dict, resolve_actor, write_audit
 
 router = APIRouter(prefix="/api/suppliers", tags=["suppliers"])
 
@@ -64,7 +66,11 @@ def get_suppliers(
 
 @router.post("")
 @async_route
-def add_supplier(supplier: Supplier):
+def add_supplier(
+    supplier: Supplier,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Add a new supplier"""
     try:
         with engine.begin() as conn:
@@ -80,6 +86,14 @@ def add_supplier(supplier: Supplier):
                 "category_id": supplier.category_id
             })
             supplier_id = result.fetchone()[0]
+        write_audit(
+            action="INSERT",
+            table_name="suppliers",
+            record_id=supplier_id,
+            new_values=model_to_dict(supplier),
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         return {"message": "Supplier added successfully", "supplier_id": supplier_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -87,7 +101,12 @@ def add_supplier(supplier: Supplier):
 
 @router.put("/{supplier_id}")
 @async_route
-def update_supplier(supplier_id: int, supplier: Supplier):
+def update_supplier(
+    supplier_id: int,
+    supplier: Supplier,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Update an existing supplier"""
     try:
         with engine.begin() as conn:
@@ -106,6 +125,14 @@ def update_supplier(supplier_id: int, supplier: Supplier):
             })
             if not result.fetchone():
                 raise HTTPException(status_code=404, detail="Supplier not found")
+        write_audit(
+            action="UPDATE",
+            table_name="suppliers",
+            record_id=supplier_id,
+            new_values=model_to_dict(supplier),
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         return {"message": "Supplier updated successfully"}
     except HTTPException:
         raise
@@ -115,13 +142,24 @@ def update_supplier(supplier_id: int, supplier: Supplier):
 
 @router.delete("/{supplier_id}")
 @async_route
-def delete_supplier(supplier_id: int):
+def delete_supplier(
+    supplier_id: int,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Delete a supplier"""
     try:
         with engine.begin() as conn:
             result = conn.execute(text("DELETE FROM suppliers WHERE supplier_id = :sid RETURNING supplier_id"), {"sid": supplier_id})
             if not result.fetchone():
                 raise HTTPException(status_code=404, detail="Supplier not found")
+        write_audit(
+            action="DELETE",
+            table_name="suppliers",
+            record_id=supplier_id,
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         return {"message": "Supplier deleted successfully"}
     except HTTPException:
         raise

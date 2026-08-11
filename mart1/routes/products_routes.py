@@ -1,13 +1,15 @@
 """
 Product management routes
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from sqlalchemy import text
 import math
+from typing import Optional
 
 from db import engine
 from models import Product, StockUpdate
 from routes.async_utils import async_route
+from routes.audit_helper import model_to_dict, resolve_actor, write_audit
 
 router = APIRouter(prefix="/api/products", tags=["products"])
 
@@ -115,7 +117,11 @@ def get_product(product_id: int):
 
 @router.post("")
 @async_route
-def add_product(product: Product):
+def add_product(
+    product: Product,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Add a new product"""
     try:
         with engine.begin() as conn:
@@ -134,6 +140,15 @@ def add_product(product: Product):
                 "cost_price": product.cost_price if product.cost_price is not None else product.price * 0.6
             })
             product_id = result.fetchone()[0]
+
+        write_audit(
+            action="INSERT",
+            table_name="products",
+            record_id=product_id,
+            new_values=model_to_dict(product),
+            actor=resolve_actor(authorization),
+            request=request,
+        )
             
         return {"message": "Product added successfully", "product_id": product_id}
     except Exception as e:
@@ -142,7 +157,12 @@ def add_product(product: Product):
 
 @router.put("/{product_id}/stock")
 @async_route
-def update_stock(product_id: int, stock_update: StockUpdate):
+def update_stock(
+    product_id: int,
+    stock_update: StockUpdate,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Update product stock quantity"""
     try:
         with engine.begin() as conn:
@@ -161,7 +181,16 @@ def update_stock(product_id: int, stock_update: StockUpdate):
             updated = result.fetchone()
             if not updated:
                 raise HTTPException(status_code=404, detail="Product not found")
-            
+
+        write_audit(
+            action="UPDATE",
+            table_name="products",
+            record_id=product_id,
+            old_values={"name": old_data[0], "stock_quantity": old_stock},
+            new_values={"name": updated[0], "stock_quantity": updated[1], "quantity_change": stock_update.quantity},
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         
         return {"message": f"Stock updated for {updated[0]}", "new_stock": updated[1]}
     except HTTPException:

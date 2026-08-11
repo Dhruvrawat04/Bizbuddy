@@ -1,7 +1,7 @@
 """
 Authentication routes for login and token verification
 """
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from sqlalchemy import text
 from datetime import datetime as dt, timedelta
 from typing import Optional
@@ -12,6 +12,7 @@ import os
 from db import engine
 from models import LoginRequest, LoginResponse, TokenData
 from routes.async_utils import async_route
+from routes.audit_helper import write_audit
 
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-12345678")
@@ -42,7 +43,7 @@ def auth_health():
 
 @router.post("/login", response_model=LoginResponse)
 @async_route
-def login(credentials: LoginRequest):
+def login(credentials: LoginRequest, request: Request):
     """
     Authenticate user with username and password.
     Returns JWT access token and user information.
@@ -66,7 +67,13 @@ def login(credentials: LoginRequest):
             row = res.fetchone()
             
             if not row:
-                # Log attempted username for debugging
+                write_audit(
+                    action="LOGIN",
+                    username=credentials.username,
+                    status="FAILED",
+                    error_message="Invalid username",
+                    request=request,
+                )
                 print(f"Login attempt failed for username: {credentials.username}")
                 res = conn.execute(text("""
                     SELECT username FROM employees
@@ -80,18 +87,49 @@ def login(credentials: LoginRequest):
         # Verify password using bcrypt
         try:
             if not bcrypt.checkpw(credentials.password.encode('utf-8'), stored_password.encode('utf-8')):
+                write_audit(
+                    action="LOGIN",
+                    table_name="employees",
+                    record_id=emp_id,
+                    username=credentials.username,
+                    role=role,
+                    status="FAILED",
+                    error_message="Invalid password",
+                    actor={"user_id": emp_id, "username": credentials.username, "role": role},
+                    request=request,
+                )
                 print(f"Password verification failed for {credentials.username}")
                 raise HTTPException(status_code=401, detail="Invalid password")
         except Exception as e:
             # If bcrypt fails (e.g., plain text password in DB), try plain text comparison as fallback
             print(f"Bcrypt verification failed, trying plain text: {e}")
             if credentials.password != stored_password:
+                write_audit(
+                    action="LOGIN",
+                    table_name="employees",
+                    record_id=emp_id,
+                    username=credentials.username,
+                    role=role,
+                    status="FAILED",
+                    error_message="Invalid password",
+                    actor={"user_id": emp_id, "username": credentials.username, "role": role},
+                    request=request,
+                )
                 print(f"Plain text password verification also failed for {credentials.username}")
                 raise HTTPException(status_code=401, detail="Invalid password")
         
         # Create JWT token
         access_token = create_access_token(
             data={"sub": str(emp_id), "role": role}
+        )
+
+        write_audit(
+            action="LOGIN",
+            table_name="employees",
+            record_id=emp_id,
+            status="SUCCESS",
+            actor={"user_id": emp_id, "username": credentials.username, "role": role},
+            request=request,
         )
         
         return LoginResponse(

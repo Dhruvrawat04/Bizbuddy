@@ -1,13 +1,15 @@
 """
 Category management routes
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from sqlalchemy import text
 import math
+from typing import Optional
 
 from db import engine
 from models import Category
 from routes.async_utils import async_route
+from routes.audit_helper import model_to_dict, resolve_actor, write_audit
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
@@ -58,7 +60,11 @@ def get_categories(
 
 @router.post("")
 @async_route
-def add_category(category: Category):
+def add_category(
+    category: Category,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Add a new category"""
     try:
         with engine.begin() as conn:
@@ -71,6 +77,14 @@ def add_category(category: Category):
                 "description": category.description
             })
             category_id = result.fetchone()[0]
+        write_audit(
+            action="INSERT",
+            table_name="categories",
+            record_id=category_id,
+            new_values=model_to_dict(category),
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         return {"message": "Category added successfully", "category_id": category_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -78,7 +92,12 @@ def add_category(category: Category):
 
 @router.put("/{category_id}")
 @async_route
-def update_category(category_id: int, category: Category):
+def update_category(
+    category_id: int,
+    category: Category,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Update an existing category"""
     try:
         with engine.begin() as conn:
@@ -94,6 +113,14 @@ def update_category(category_id: int, category: Category):
             })
             if not result.fetchone():
                 raise HTTPException(status_code=404, detail="Category not found")
+        write_audit(
+            action="UPDATE",
+            table_name="categories",
+            record_id=category_id,
+            new_values=model_to_dict(category),
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         return {"message": "Category updated successfully"}
     except HTTPException:
         raise
@@ -103,13 +130,24 @@ def update_category(category_id: int, category: Category):
 
 @router.delete("/{category_id}")
 @async_route
-def delete_category(category_id: int):
+def delete_category(
+    category_id: int,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Delete a category"""
     try:
         with engine.begin() as conn:
             result = conn.execute(text("DELETE FROM categories WHERE category_id = :cid RETURNING category_id"), {"cid": category_id})
             if not result.fetchone():
                 raise HTTPException(status_code=404, detail="Category not found")
+        write_audit(
+            action="DELETE",
+            table_name="categories",
+            record_id=category_id,
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         return {"message": "Category deleted successfully"}
     except HTTPException:
         raise

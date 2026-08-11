@@ -1,14 +1,16 @@
 """
 Employee management routes
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from sqlalchemy import text
 import math
 import bcrypt
+from typing import Optional
 
 from db import engine
 from models import Employee
 from routes.async_utils import async_route
+from routes.audit_helper import model_to_dict, resolve_actor, write_audit
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
@@ -59,7 +61,11 @@ def get_employees(
 
 @router.post("")
 @async_route
-def add_employee(employee: Employee):
+def add_employee(
+    employee: Employee,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Add a new employee"""
     try:
         hashed_password = bcrypt.hashpw(employee.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -75,6 +81,15 @@ def add_employee(employee: Employee):
                 "password": hashed_password
             })
             employee_id = result.fetchone()[0]
+
+        write_audit(
+            action="INSERT",
+            table_name="employees",
+            record_id=employee_id,
+            new_values=model_to_dict(employee),
+            actor=resolve_actor(authorization),
+            request=request,
+        )
             
         return {"message": "Employee added successfully", "employee_id": employee_id}
     except Exception as e:

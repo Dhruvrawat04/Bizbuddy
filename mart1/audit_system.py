@@ -37,8 +37,16 @@ def create_audit_table():
             CREATE INDEX IF NOT EXISTS idx_audit_table ON audit_logs(table_name);
             CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
         """))
+
+        conn.execute(text("""
+            SELECT setval(
+                pg_get_serial_sequence('audit_logs', 'log_id'),
+                COALESCE((SELECT MAX(log_id) FROM audit_logs), 0) + 1,
+                false
+            )
+        """))
     
-    print("✅ Audit logs table created successfully")
+    print("Audit logs table ready")
 
 def log_activity(
     user_id: int = None,
@@ -100,7 +108,7 @@ def log_activity(
                 "error_message": error_message
             })
     except Exception as e:
-        print(f"⚠️ Failed to log activity: {e}")
+        print(f"Failed to log activity: {e}")
 
 def get_recent_logs(limit: int = 50):
     """Get recent audit logs"""

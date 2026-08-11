@@ -1,13 +1,15 @@
 """
 Purchase order management routes
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from sqlalchemy import text
 import math
+from typing import Optional
 
 from db import engine
 from models import PurchaseOrder
 from routes.async_utils import async_route
+from routes.audit_helper import resolve_actor, write_audit
 
 router = APIRouter(prefix="/api/purchase-orders", tags=["purchase-orders"])
 
@@ -64,7 +66,11 @@ def get_purchase_orders(
 
 @router.post("")
 @async_route
-def create_purchase_order(order: PurchaseOrder):
+def create_purchase_order(
+    order: PurchaseOrder,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Create a new purchase order"""
     try:
         with engine.begin() as conn:
@@ -133,7 +139,21 @@ def create_purchase_order(order: PurchaseOrder):
                     "unit_price": item.get('unit_price')
                 })
                 total_amount += item.get('quantity') * item.get('unit_price')
-            
+
+        write_audit(
+            action="INSERT",
+            table_name="purchase_orders",
+            record_id=order_id,
+            new_values={
+                "order_id": order_id,
+                "supplier_id": order.supplier_id,
+                "status": order.status,
+                "item_count": len(order.items),
+                "total_amount": total_amount,
+            },
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         
         return {"message": "Purchase order created successfully", "order_id": order_id}
     except HTTPException:
@@ -172,7 +192,11 @@ def get_purchase_order_details(order_id: int):
 
 @router.put("/{order_id}/receive")
 @async_route
-def receive_purchase_order(order_id: int):
+def receive_purchase_order(
+    order_id: int,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Receive a purchase order and update stock"""
     try:
         with engine.begin() as conn:
@@ -198,6 +222,15 @@ def receive_purchase_order(order_id: int):
                 SET status = 'RECEIVED'
                 WHERE order_id = :oid
             """), {"oid": order_id})
+
+        write_audit(
+            action="UPDATE",
+            table_name="purchase_orders",
+            record_id=order_id,
+            new_values={"status": "RECEIVED", "items_received": len(items)},
+            actor=resolve_actor(authorization),
+            request=request,
+        )
         
         return {"message": "Purchase order received and stock updated"}
     except HTTPException:

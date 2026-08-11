@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+from audit_system import create_audit_table
+create_audit_table()
+
 from routes import (
     auth_router,
     products_router,

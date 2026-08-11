@@ -1,20 +1,26 @@
 """
 Sales management routes
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from sqlalchemy import text
 import math
+from typing import Optional
 
 from db import engine
 from models import Sale
 from routes.async_utils import async_route
+from routes.audit_helper import resolve_actor, write_audit
 
 router = APIRouter(prefix="/api/sales", tags=["sales"])
 
 
 @router.post("")
 @async_route
-def create_sale(sale: Sale):
+def create_sale(
+    sale: Sale,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
     """Create a new sale transaction"""
     try:
         total = 0.0
@@ -120,6 +126,23 @@ def create_sale(sale: Sale):
             """
             conn.execute(text(update_query))
             
+        actor = resolve_actor(authorization, employee_id=sale.employee_id, username=emp_username, role=emp_role)
+        write_audit(
+            action="INSERT",
+            table_name="sales",
+            record_id=sale_id,
+            new_values={
+                "sale_id": sale_id,
+                "total_amount": round(total, 2),
+                "payment_method": sale.payment_method,
+                "customer_id": sale.customer_id,
+                "employee_id": sale.employee_id,
+                "item_count": len(cart),
+                "items": cart,
+            },
+            actor=actor,
+            request=request,
+        )
         
         return {"message": "Sale completed successfully", "sale_id": sale_id, "total": total}
     except HTTPException:
