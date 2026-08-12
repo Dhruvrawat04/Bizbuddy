@@ -1,59 +1,27 @@
+# BizBuddy — ONE service, ONE URL
+# Deploy: Render Dashboard → New → Blueprint → select this repo
+# Or: New → Web Service → Docker → this repo root
+
 services:
-  # =====================
-  # Mart1 - Inventory & Billing (FastAPI + React)
-  # =====================
   - type: web
-    name: mart1-api
-    rootDir: mart1
-    env: python
+    name: bizbuddy
+    runtime: docker
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python init_db.py && uvicorn api_server:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
     envVars:
+      # Your existing Supabase Postgres (required for Mart1)
       - key: DATABASE_URL
-        fromDatabase:
-          name: mart1-db
-          property: connectionString
+        sync: false
+      # CORS — same origin works; leave empty or set to your Render URL
       - key: FRONTEND_URL
-        value: https://mart1-frontend.onrender.com
-      - key: PYTHON_VERSION
-        value: "3.11.0"
-
-  - type: static
-    name: mart1-frontend
-    rootDir: mart1/frontend
-    plan: free
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: VITE_API_URL
-        value: https://mart1-api.onrender.com/api
-
-  # =====================
-  # Supermarket - Analytics & Dashboard (Flask)
-  # =====================
-  - type: web
-    name: supermarket-flask
-    rootDir: supermarket
-    env: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
-    envVars:
-      - key: FLASK_ENV
-        value: production
+        sync: false
       - key: SESSION_SECRET
         generateValue: true
+      - key: FLASK_ENV
+        value: production
       - key: PYTHON_VERSION
         value: "3.11.0"
-      # Optional: uncomment later if you want Postgres instead of SQLite
-      # - key: DATABASE_URL
-      #   fromDatabase:
-      #     name: supermarket-db
-      #     property: connectionString
 
-databases:
-  - name: mart1-db
-    databaseName: mart1_db
-    user: mart1_user
-    plan: free
+# No Render Postgres needed — use your Supabase DATABASE_URL
