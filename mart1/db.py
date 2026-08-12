@@ -11,7 +11,7 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 # Supabase pooler defaults for this project
 DEFAULT_HOST = "aws-1-ap-southeast-1.pooler.supabase.com"
 DEFAULT_USER = "postgres.maiayxnydpqptikawkhs"
-DEFAULT_PORT = "6543"
+DEFAULT_PORT = "5432"
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 DB_HOST = os.getenv("PGHOST", DEFAULT_HOST)
