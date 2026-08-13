@@ -14,6 +14,8 @@ MART1_PID=$!
 echo "==> Starting Supermarket Flask on :5001 (mounted at /supermarket)"
 cd /app/supermarket
 export FLASK_ENV="${FLASK_ENV:-production}"
+# Point supermarket at the in-container Mart1 API (not public nginx /api)
+export MART1_API_URL="${MART1_API_URL:-http://127.0.0.1:8000}"
 gunicorn wsgi_subdir:application \
   --bind 127.0.0.1:5001 \
   --workers 1 \

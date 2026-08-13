@@ -147,7 +147,7 @@ function Layout({ children }) {
           <div className="nav-divider"></div>
 
           <a 
-            href="http://localhost:5500" 
+            href="/supermarket/" 
             target="_blank"
             rel="noopener noreferrer"
             className="nav-item analytics-link"

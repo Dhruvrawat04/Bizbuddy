@@ -269,7 +269,7 @@ function generateForecast() {
     };
     
     // Fetch forecast data from API
-    fetch('/api/sales-forecast', {
+    fetch((window.API_BASE || '/api') + '/sales-forecast', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

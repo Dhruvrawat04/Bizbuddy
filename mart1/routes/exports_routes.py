@@ -14,60 +14,77 @@ router = APIRouter(prefix="/api/export", tags=["export"])
 @router.get("/sales")
 @async_route
 def export_sales_data(limit: int = 1000, days: Optional[int] = None):
+    """
+    Export sales line-items for analytics.
+    Filters by date first, then joins — much faster on large tables.
+    """
     try:
-        with engine.connect() as conn:
-            query = """
-                SELECT 
-                    CONCAT(s.sale_id, '-', si.sale_item_id) as "Invoice ID",
-                    s.sale_time::date as "Date",
-                    s.sale_time::time as "Time",
-                    (si.quantity * si.unit_price) as "Total",
-                    si.quantity as "Quantity",
-                    si.unit_price as "Unit price",
-                    cat.name as "Product line",
-                    s.payment_method as "Payment",
-                    CASE WHEN cust.customer_id IS NOT NULL THEN 'Member' ELSE 'Normal' END as "Customer type",
-                    p.name as "Product name",
-                    cat.name as "Category",
-                    COALESCE(cust.gender, 'Unknown') as "Gender",
-                    COALESCE(s.discount_percentage, 0) as "Discount (%)",
-                    s.customer_rating as "Customer_Rating",
-                    s.feedback as "Feedback",
-                    COALESCE(cust.churn, 0) as "Churn"
+        limit = max(1, min(int(limit or 1000), 5000))
+        params = {"limit": limit}
+
+        # Filter sales first (uses sale_time index if present), then join details
+        where_clause = ""
+        if days is not None and int(days) > 0:
+            where_clause = "WHERE s.sale_time >= CURRENT_DATE - CAST(:days AS INTEGER) * INTERVAL '1 day'"
+            params["days"] = int(days)
+
+        query = f"""
+            SELECT
+                CONCAT(s.sale_id, '-', si.sale_item_id) AS "Invoice ID",
+                TO_CHAR(s.sale_time, 'YYYY-MM-DD') AS "Date",
+                TO_CHAR(s.sale_time, 'HH24:MI') AS "Time",
+                COALESCE(si.quantity * si.unit_price, 0) AS "Total",
+                COALESCE(si.quantity, 0) AS "Quantity",
+                COALESCE(si.unit_price, 0) AS "Unit price",
+                COALESCE(cat.name, 'Uncategorized') AS "Product line",
+                COALESCE(s.payment_method, 'Unknown') AS "Payment",
+                CASE WHEN s.customer_id IS NOT NULL THEN 'Member' ELSE 'Normal' END AS "Customer type",
+                COALESCE(p.name, 'Unknown') AS "Product name",
+                COALESCE(cat.name, 'Uncategorized') AS "Category",
+                COALESCE(cust.gender, 'Unknown') AS "Gender",
+                COALESCE(s.discount_percentage, 0) AS "Discount (%)",
+                s.customer_rating AS "Customer_Rating",
+                s.feedback AS "Feedback",
+                COALESCE(cust.churn, 0) AS "Churn"
+            FROM (
+                SELECT sale_id, sale_time, payment_method, customer_id,
+                       discount_percentage, customer_rating, feedback
                 FROM sales s
-                LEFT JOIN sale_items si ON s.sale_id = si.sale_id
-                LEFT JOIN products p ON si.product_id = p.product_id
-                LEFT JOIN categories cat ON p.category_id = cat.category_id
-                LEFT JOIN customers cust ON s.customer_id = cust.customer_id
-            """
+                {where_clause}
+                ORDER BY s.sale_time DESC
+                LIMIT :limit
+            ) s
+            INNER JOIN sale_items si ON si.sale_id = s.sale_id
+            LEFT JOIN products p ON p.product_id = si.product_id
+            LEFT JOIN categories cat ON cat.category_id = p.category_id
+            LEFT JOIN customers cust ON cust.customer_id = s.customer_id
+            ORDER BY s.sale_time DESC
+            LIMIT :limit
+        """
 
-            if days:
-                query += f" WHERE s.sale_time >= CURRENT_DATE - INTERVAL '{days} days'"
-
-            query += f" ORDER BY s.sale_time DESC LIMIT {limit}"
-
-            result = conn.execute(text(query))
-            rows = result.fetchall()
+        with engine.connect() as conn:
+            result = conn.execute(text(query), params)
+            rows = result.mappings().all()
 
         sales_data = []
         for r in rows:
             sales_data.append({
-                "Invoice ID": r[0],
-                "Date": str(r[1]),
-                "Time": str(r[2]),
-                "Total": float(r[3]) if r[3] else 0,
-                "Quantity": r[4],
-                "Unit price": float(r[5]) if r[5] else 0,
-                "Product line": r[6],
-                "Payment": r[7],
-                "Customer type": r[8],
-                "Product name": r[9],
-                "Category": r[10],
-                "Gender": r[11],
-                "Discount (%)": float(r[12]) if r[12] else 0.0,
-                "Customer_Rating": float(r[13]) if r[13] else None,
-                "Feedback": r[14],
-                "Churn": int(r[15]) if r[15] is not None else 0
+                "Invoice ID": r["Invoice ID"],
+                "Date": r["Date"],
+                "Time": r["Time"],
+                "Total": float(r["Total"] or 0),
+                "Quantity": int(r["Quantity"] or 0),
+                "Unit price": float(r["Unit price"] or 0),
+                "Product line": r["Product line"],
+                "Payment": r["Payment"],
+                "Customer type": r["Customer type"],
+                "Product name": r["Product name"],
+                "Category": r["Category"],
+                "Gender": r["Gender"],
+                "Discount (%)": float(r["Discount (%)"] or 0),
+                "Customer_Rating": float(r["Customer_Rating"]) if r["Customer_Rating"] is not None else None,
+                "Feedback": r["Feedback"],
+                "Churn": int(r["Churn"] or 0),
             })
 
         return {"data": sales_data, "count": len(sales_data)}

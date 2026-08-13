@@ -479,7 +479,7 @@ function performChurnPrediction() {
     const filters = getFiltersFromForm('analysisFilterForm');
     
     // Call API endpoint
-    fetch('/api/churn-prediction', {
+    fetch((window.API_BASE || '/api') + '/churn-prediction', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
