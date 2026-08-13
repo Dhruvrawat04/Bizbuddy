@@ -14,7 +14,7 @@
     transition: all 0.3s ease;
 }
 .forecast-stats:hover {
-    transform: translateY(-5px);
+    transform: translateZ(20px) scale(1.02);
 }
 </style>
 {% endblock %}
@@ -269,7 +269,7 @@ function generateForecast() {
     };
     
     // Fetch forecast data from API
-    fetch('/api/sales-forecast', {
+    fetch((window.API_BASE || '/api') + '/sales-forecast', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

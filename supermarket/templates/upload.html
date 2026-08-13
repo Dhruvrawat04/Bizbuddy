@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const spinner = document.getElementById('statusSpinner');
         
         try {
-            const response = await fetch('/api/mart1/status');
+            const response = await fetch((window.API_BASE || '/api') + '/mart1/status');
             const data = await response.json();
             
             spinner.style.display = 'none';
@@ -211,8 +211,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to switch to mart1 data
     window.useMart1Data = async function() {
+        const btn = document.querySelector('#mart1Actions button');
+        const originalHtml = btn ? btn.innerHTML : '';
         try {
-            const response = await fetch('/api/switch-data-source', {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading Mart1 data...';
+            }
+            const response = await fetch((window.API_BASE || '/api') + '/switch-data-source', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -223,14 +229,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                // Show success message
-                alert('Successfully switched to Mart1 data! Redirecting to dashboard...');
-                // Redirect to dashboard
+                const n = data.record_count ? ` (${data.record_count} records)` : '';
+                if (btn) btn.innerHTML = '<i class="fas fa-check me-2"></i>Loaded' + n;
                 window.location.href = '{{ url_for("dashboard") }}';
             } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
                 alert('Error: ' + (data.error || 'Failed to switch to Mart1 data'));
             }
         } catch (error) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
             alert('Error switching to Mart1 data: ' + error.message);
         }
     };

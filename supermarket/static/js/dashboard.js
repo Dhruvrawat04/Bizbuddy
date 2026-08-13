@@ -35,7 +35,7 @@ function hideLoadingOverlay() {
 
 // Load data from API
 function loadData() {
-    fetch('/api/load-data')
+    fetch((window.API_BASE || '/api') + '/load-data')
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -859,7 +859,7 @@ function applyFilters() {
     currentPage = 1;
     
     // Call API with filters
-    fetch('/api/filter-data', {
+    fetch((window.API_BASE || '/api') + '/filter-data', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

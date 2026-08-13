@@ -13,22 +13,27 @@ logger = logging.getLogger(__name__)
 class Mart1Integration:
     """Service to connect supermarket analytics with mart1 billing system"""
     
-    def __init__(self, base_url: str = None):
+    def __init__(self, base_url: str = None, timeout: int = None):
         if base_url is None:
             base_url = os.environ.get('MART1_API_URL', 'http://127.0.0.1:8000')
-        """
-        Initialize the integration service
-        
-        Args:
-            base_url: Base URL of the mart1 API server
-        """
         self.base_url = base_url.rstrip('/')
-        self.timeout = 10  # seconds
+        # Health checks stay short; data pulls can take longer (Supabase + cold starts)
+        if timeout is None:
+            try:
+                timeout = int(os.environ.get('MART1_API_TIMEOUT', '45'))
+            except ValueError:
+                timeout = 45
+        self.timeout = timeout
+        self._health_timeout = min(5, self.timeout)
+        self._session = requests.Session()
         
     def is_available(self) -> bool:
-        """Check if mart1 API is available"""
+        """Fast health check — do not pull heavy reports here"""
         try:
-            response = requests.get(f"{self.base_url}/", timeout=self.timeout)
+            response = self._session.get(
+                f"{self.base_url}/",
+                timeout=self._health_timeout,
+            )
             return response.status_code == 200
         except Exception as e:
             logger.warning(f"Mart1 API not available: {e}")
@@ -46,14 +51,16 @@ class Mart1Integration:
             DataFrame with sales data or None if fetch fails
         """
         try:
+            # Cap hard so we never request huge payloads that time out
+            limit = max(1, min(int(limit or 1000), 5000))
             params = {"limit": limit}
             if days:
                 params["days"] = days
                 
-            response = requests.get(
+            response = self._session.get(
                 f"{self.base_url}/api/export/sales",
                 params=params,
-                timeout=self.timeout
+                timeout=self.timeout,
             )
             response.raise_for_status()
             
@@ -78,7 +85,7 @@ class Mart1Integration:
             DataFrame with product data or None if fetch fails
         """
         try:
-            response = requests.get(
+            response = self._session.get(
                 f"{self.base_url}/api/export/products",
                 timeout=self.timeout
             )
@@ -108,7 +115,7 @@ class Mart1Integration:
             DataFrame with category performance data or None if fetch fails
         """
         try:
-            response = requests.get(
+            response = self._session.get(
                 f"{self.base_url}/api/export/categories-performance",
                 params={"days": days},
                 timeout=self.timeout
@@ -136,7 +143,7 @@ class Mart1Integration:
             DataFrame with inventory status or None if fetch fails
         """
         try:
-            response = requests.get(
+            response = self._session.get(
                 f"{self.base_url}/api/export/inventory-status",
                 timeout=self.timeout
             )
@@ -163,7 +170,7 @@ class Mart1Integration:
             Dictionary with summary statistics or None if fetch fails
         """
         try:
-            response = requests.get(
+            response = self._session.get(
                 f"{self.base_url}/api/reports/all-time-analysis",
                 timeout=self.timeout
             )

@@ -9,7 +9,7 @@
     margin-bottom: 1rem;
 }
 .insight-card:hover {
-    transform: translateY(-5px);
+    transform: translateZ(20px) scale(1.02);
 }
 .analysis-container {
     min-height: 400px;
@@ -479,7 +479,7 @@ function performChurnPrediction() {
     const filters = getFiltersFromForm('analysisFilterForm');
     
     // Call API endpoint
-    fetch('/api/churn-prediction', {
+    fetch((window.API_BASE || '/api') + '/churn-prediction', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

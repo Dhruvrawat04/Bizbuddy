@@ -27,7 +27,7 @@ function initializeForecast() {
 
 // Load data for analysis
 function loadAnalysisData() {
-    fetch('/api/load-data')
+    fetch((window.API_BASE || '/api') + '/load-data')
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -52,7 +52,7 @@ function loadAnalysisData() {
 
 // Load data for forecast
 function loadForecastData() {
-    fetch('/api/load-data')
+    fetch((window.API_BASE || '/api') + '/load-data')
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -390,7 +390,7 @@ function fetchCustomerSegmentation() {
     const filters = getAnalysisFilterValues();
     
     // Call API to perform segmentation
-    fetch('/api/customer-segmentation', {
+    fetch((window.API_BASE || '/api') + '/customer-segmentation', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -608,7 +608,7 @@ function fetchCorrelationAnalysis() {
     const filters = getAnalysisFilterValues();
     
     // Call API to get data
-    fetch('/api/filter-data', {
+    fetch((window.API_BASE || '/api') + '/filter-data', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -858,7 +858,7 @@ function fetchProductAnalysis() {
     const filters = getAnalysisFilterValues();
     
     // Call API to generate charts
-    fetch('/api/generate-chart', {
+    fetch((window.API_BASE || '/api') + '/generate-chart', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1028,7 +1028,7 @@ function fetchTimeAnalysis() {
     const filters = getAnalysisFilterValues();
     
     // Call API for hourly distribution
-    fetch('/api/generate-chart', {
+    fetch((window.API_BASE || '/api') + '/generate-chart', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1046,7 +1046,7 @@ function fetchTimeAnalysis() {
             displayTimeHeatmap(data.chart_data);
             
             // Now fetch hourly distribution
-            return fetch('/api/generate-chart', {
+            return fetch((window.API_BASE || '/api') + '/generate-chart', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1236,7 +1236,7 @@ function fetchInsights() {
     const filters = getAnalysisFilterValues();
 
     // Use POST method to ensure proper handling of filter parameters
-    fetch('/api/generate-insights', {
+    fetch((window.API_BASE || '/api') + '/generate-insights', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1411,7 +1411,7 @@ function generateSalesForecast() {
     };
     
     // Call API to generate forecast
-    fetch('/api/sales-forecast', {
+    fetch((window.API_BASE || '/api') + '/sales-forecast', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1829,7 +1829,7 @@ function performChurnPrediction() {
     const filterData = getAnalysisFilterValues();
     
     // Call API endpoint
-    fetch('/api/churn-prediction', {
+    fetch((window.API_BASE || '/api') + '/churn-prediction', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

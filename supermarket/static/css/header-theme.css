@@ -24,8 +24,8 @@
 }
 
 .navbar-brand:hover {
-    transform: scale(1.05);
-    filter: brightness(1.2);
+    transform: translateZ(10px) scale(1.03);
+    filter: brightness(1.05);
 }
 
 .navbar-brand img {
@@ -38,7 +38,7 @@
 
 .navbar-brand:hover img {
     filter: drop-shadow(0 0 20px rgba(13, 202, 240, 0.8));
-    transform: rotate(5deg) scale(1.1);
+    transform: translateZ(8px) scale(1.05);
 }
 
 .navbar-nav {
@@ -76,7 +76,7 @@
 
 .nav-link:hover {
     color: #fff !important;
-    transform: translateY(-2px);
+    transform: translateZ(8px) scale(1.02);
     box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
 }
 

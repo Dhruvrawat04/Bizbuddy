@@ -35,7 +35,7 @@ body {
 }
 
 .card-stat:hover {
-    transform: translateY(-5px);
+    transform: translateZ(20px) scale(1.02);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
@@ -83,7 +83,7 @@ body {
 }
 
 .insight-card:hover {
-    transform: translateY(-5px);
+    transform: translateZ(20px) scale(1.02);
     box-shadow: 0 10px 20px rgba(0, 123, 255, 0.4);
     border-color: rgba(0, 123, 255, 0.8) !important;
 }
@@ -104,7 +104,7 @@ body {
 }
 
 #segmentProfiles .card:hover {
-    transform: translateY(-3px);
+    transform: translateZ(16px) scale(1.02);
     box-shadow: 0 8px 16px rgba(0, 123, 255, 0.4);
     border-color: rgba(0, 123, 255, 0.8) !important;
 }
@@ -178,7 +178,7 @@ body {
 }
 
 .forecast-stats:hover {
-    transform: translateY(-5px);
+    transform: translateZ(20px) scale(1.02);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
