@@ -8,31 +8,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const cards = document.querySelectorAll(cardSelector);
     
     cards.forEach(card => {
-        // Store original transform
-        let isHovering = false;
-        
-        card.addEventListener('mousemove', function(e) {
-            if (!isHovering) return;
-            
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            
-            const rotateX = (y - centerY) / 10;
-            const rotateY = (centerX - x) / 10;
-            
-            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-15px) scale(1.02)`;
-        });
-        
         card.addEventListener('mouseenter', function() {
-            isHovering = true;
+            card.style.transform = 'translateZ(24px) scale(1.02)';
         });
-        
+
         card.addEventListener('mouseleave', function() {
-            isHovering = false;
             card.style.transform = '';
         });
     });

@@ -25,6 +25,7 @@ function initThreeBackground() {
     canvas.style.left = '0';
     canvas.style.zIndex = '-1';
     canvas.style.pointerEvents = 'none';
+    canvas.style.opacity = '0.58';
     document.body.insertBefore(canvas, document.body.firstChild);
     
     // Create particles
@@ -35,11 +36,11 @@ function initThreeBackground() {
     const sizes = new Float32Array(particleCount);
     
     const colorPalette = [
-        new THREE.Color(0x0d6efd), // Primary blue
-        new THREE.Color(0x6610f2), // Purple
-        new THREE.Color(0x0dcaf0), // Cyan
-        new THREE.Color(0x20c997), // Teal
-        new THREE.Color(0xffc107), // Yellow
+        new THREE.Color(0x0a58ca), // Medium blue
+        new THREE.Color(0x5518c8), // Medium purple
+        new THREE.Color(0x0aa0c0), // Medium cyan
+        new THREE.Color(0x18a070), // Medium teal
+        new THREE.Color(0xc89810), // Medium gold
     ];
     
     for (let i = 0; i < particleCount * 3; i += 3) {
@@ -55,7 +56,7 @@ function initThreeBackground() {
         colors[i + 2] = color.b;
         
         // Size
-        sizes[i / 3] = Math.random() * 2 + 0.5;
+        sizes[i / 3] = Math.random() * 1.6 + 0.4;
     }
     
     particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -64,20 +65,16 @@ function initThreeBackground() {
     
     // Particle material
     const particleMaterial = new THREE.PointsMaterial({
-        size: 2,
+        size: 1.7,
         vertexColors: true,
         transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending,
+        opacity: 0.62,
+        blending: THREE.NormalBlending,
         sizeAttenuation: true
     });
     
     particleSystem = new THREE.Points(particles, particleMaterial);
     scene.add(particleSystem);
-    
-    // Add ambient light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
     
     // Mouse move listener for parallax
     document.addEventListener('mousemove', (event) => {
@@ -106,8 +103,8 @@ function animate() {
     particleSystem.rotation.x += 0.0005;
     
     // Parallax effect based on mouse position
-    camera.position.x += (mouseX * 5 - camera.position.x) * 0.05;
-    camera.position.y += (mouseY * 5 - camera.position.y) * 0.05;
+    camera.position.x += (mouseX * 3.5 - camera.position.x) * 0.04;
+    camera.position.y += (mouseY * 3.5 - camera.position.y) * 0.04;
     camera.lookAt(scene.position);
     
     // Animate particles
